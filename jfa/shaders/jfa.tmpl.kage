@@ -1,0 +1,85 @@
+//kage:unit pixels
+
+package main
+
+func packUV(uv vec2) vec4 {
+	return vec4(uv.xy, 0, 1)
+	x := uv.x * 256 * 255
+	y := uv.y * 256 * 255
+	return vec4(
+		vec2(mod(x, 256), x/256)/255,
+		vec2(mod(y, 256), y/256)/255,
+	)
+}
+
+func unpackUV(packed vec4) vec2 {
+	return packed.xy
+	x := packed.x/255 + packed.y*256
+	y := packed.z/255 + packed.w*256
+	return vec2(x, y) / 256
+}
+
+func jump(minseed vec3, current, offset vec2) vec3 {
+	pos := current.xy + offset
+	// OOB
+	if length(clamp(pos, 0, 1)-pos) > 0.0001 {
+		{{ .OOBValue }}
+	}
+
+	seed := imageSrc0At(pos*imageSrc0Size() + imageSrc0Origin())
+	s := unpackUV(seed)
+	if d := length(current.xy - s); d < minseed.z {
+		return vec3(s, d)
+	}
+
+	return minseed
+}
+
+var (
+	ColorMaskAlpha     float
+	ColorMaskGreyscale float
+	ColorMaskR         float
+	ColorMaskG         float
+	ColorMaskB         float
+)
+
+func threshold(clr vec4) bool {
+	t := 1.
+
+{{range .ThresholdChecks}}
+{{.}}
+{{end}}
+
+	return t {{ .ThresholdCmp }} 0.5
+}
+
+var JumpDistance float
+var FirstPass float
+
+func Fragment(dst vec4, src vec2, color vec4) vec4 {
+	uv := (src - imageSrc0Origin()) / imageSrc0Size()
+	if FirstPass == 1 {
+		clr := imageSrc0At(src)
+		if threshold(clr) {
+			return packUV(uv.xy)
+		}
+		// {{ .EmptyValue }}
+		// Note: this part is broken in corners, idk how to fix so far..
+		s := step(uv.xy-0.5, vec2(0))
+		return vec4(s,0,0)
+	}
+
+	jd := vec2(JumpDistance) / imageSrc0Size()
+	c := vec3(1, 1, 9999)
+	c = jump(c, uv, jd*vec2(0, 0))
+	c = jump(c, uv, jd*vec2(0, 1))
+	c = jump(c, uv, jd*vec2(1, 1))
+	c = jump(c, uv, jd*vec2(1, 0))
+	c = jump(c, uv, jd*vec2(1, -1))
+	c = jump(c, uv, jd*vec2(0, -1))
+	c = jump(c, uv, jd*vec2(-1, -1))
+	c = jump(c, uv, jd*vec2(-1, 0))
+	c = jump(c, uv, jd*vec2(-1, 1))
+
+	return packUV(c.xy)
+}

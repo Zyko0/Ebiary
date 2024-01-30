@@ -1,6 +1,8 @@
-A small utility package to manage hot-reloading assets in ebitengine.
+# Asset
 
-# Usage
+A small utility package to manage hot-reloading assets using Ebitengine.
+
+## Usage
 
 `go get github.com/Zyko0/Ebiary/asset`
 
@@ -27,12 +29,12 @@ If the asset failed to reload, then the method `.Error()` will return a loading 
 When an error shows up, you need to log it explicitely because the content (accessed by `.Value()`) will remain unchanged until the next reload is successful.
 This is necessary for shader files, because ebitengine returning a nil shader would crash the program, if your code editor performs auto-save and that you didn't finish updating its code, for example.
 
-# Features
+## Features
 
 - `*ebiten.Image` => Supports png, jpg, bmp decoding
 - `*ebiten.Shader` => It just calls `ebiten.NewShader`
 
-# Notes
+## Notes
 
 - This uses `github.com/fsnotify/fsnotify` to watch for file changes and update the related assets automatically.
 - I used generics so that the type assertion does not need to be made on the user side and I also find that it documents the code more, on top of the variable name.

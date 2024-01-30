@@ -1,0 +1,32 @@
+//kage:unit pixels
+
+package main
+
+func unpackUV(packed vec4) vec2 {
+	return packed.xy
+	x := packed.x/255 + packed.y*256
+	y := packed.z/255 + packed.w*256
+	return vec2(x, y) / 256
+}
+
+func gray(clr vec3) float {
+	return clr.r*0.299 + clr.g*0.587 + clr.b*0.114
+}
+
+const (
+	EncodingDistanceGreyscale = 0.
+	EncodingUV                = 1.
+)
+
+var Encoding float
+var Scale float
+
+func Fragment(dst vec4, src vec2, color vec4) vec4 {
+	uv := (src-imageSrc0Origin())/imageSrc0Size()*2 - 1
+	uv2 := unpackUV(imageSrc0At(src))*2 - 1
+	if Encoding == EncodingUV {
+		return vec4((uv2.xy+1)/2, 0, 1)
+	}
+	// Distance
+	return vec4(vec3(length(uv-uv2)), 1.)
+}
