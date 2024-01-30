@@ -39,6 +39,13 @@ j.Generate(dstImg, maskImg, &jfa.GenerateOptions{
 
 ## Previews
 
+| Original | Exterior |
+|-|-|
+|![img](https://github.com/Zyko0/Ebiary/assets/13394516/09a2257f-ebd5-428f-8691-e80e227167e1)|![image](https://github.com/Zyko0/Ebiary/assets/13394516/76e136c7-2d62-424c-b747-023b7d738562)|
+
+| Interior | UVs (Exterior) |
+|-|-|
+|![image](https://github.com/Zyko0/Ebiary/assets/13394516/d0366527-9d95-4479-856d-b9b15fe351fc)|![image](https://github.com/Zyko0/Ebiary/assets/13394516/781c918a-4729-42ac-88b3-3f2fc90d9abe)|
 
 
 ## CLI (TBD)
