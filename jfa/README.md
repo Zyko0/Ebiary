@@ -3,7 +3,7 @@
 An implementation of the [jump flooding algorithm (JFA)](https://en.wikipedia.org/wiki/Jump_flooding_algorithm) using Ebitengine.
 It can be used to create signed distance field textures, with fonts for example.
 
-Note that it's a bit broken at the moment!
+Note that there are still a few edge cases that need to be fixed overall!
 
 ## Usage
 
@@ -22,18 +22,18 @@ j := jfa.New(dstImg.Bounds())
 j.Generate(dstImg, maskImg, &jfa.GenerateOptions{
     // Pixel colors with total luminance (grey) > 0 and alpha > 0 will
     // contribute to the plain shape
-	PlainValueThresholds: map[jfa.ColorMask]float64{
-		jfa.ColorMaskAlpha:     0,
-		jfa.ColorMaskGreyscale: 0,
-	},
+    PlainValueThresholds: map[jfa.ColorMask]float64{
+        jfa.ColorMaskAlpha:     0,
+        jfa.ColorMaskGreyscale: 0,
+    },
     // The same distance value will be set in R,G,B channels
     Encoding:     jfa.EncodingDistanceGreyscale,
     // The exterior distance to the shape is calculated
-	DistanceType: jfa.DistanceExterior,
+    DistanceType: jfa.DistanceExterior,
     // The edges do not count as part of the plain shape
-	EdgesPlain:   false,
-	Steps:        1024,
-	JumpDistance: 8,
+    EdgesPlain:   false,
+    Steps:        1024,
+    JumpDistance: 8,
 })
 ```
 
@@ -43,9 +43,13 @@ j.Generate(dstImg, maskImg, &jfa.GenerateOptions{
 |-|-|
 |![img](https://github.com/Zyko0/Ebiary/assets/13394516/09a2257f-ebd5-428f-8691-e80e227167e1)|![image](https://github.com/Zyko0/Ebiary/assets/13394516/76e136c7-2d62-424c-b747-023b7d738562)|
 
-| Interior | UVs (Exterior) |
+| Exterior (Edges plain) | Interior |
 |-|-|
-|![image](https://github.com/Zyko0/Ebiary/assets/13394516/d0366527-9d95-4479-856d-b9b15fe351fc)|![image](https://github.com/Zyko0/Ebiary/assets/13394516/781c918a-4729-42ac-88b3-3f2fc90d9abe)|
+|![image](https://github.com/Zyko0/Ebiary/assets/13394516/f6e5d3ef-1c50-435c-90cc-e46ec9613f46)|![image](https://github.com/Zyko0/Ebiary/assets/13394516/d0366527-9d95-4479-856d-b9b15fe351fc)|
+
+| UVs (Exterior) | UVs (Interior) |
+|-|-|
+|![image](https://github.com/Zyko0/Ebiary/assets/13394516/781c918a-4729-42ac-88b3-3f2fc90d9abe)|![image](https://github.com/Zyko0/Ebiary/assets/13394516/e528798f-3a1a-4400-997d-700e965674ce)|
 
 
 ## CLI (TBD)

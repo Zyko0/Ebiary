@@ -180,8 +180,8 @@ func (jfa *JFA) Generate(dst, src *ebiten.Image, opts *GenerateOptions) {
 	}
 	dst.DrawTrianglesShader(vertices, indices, EncodingShader(), &ebiten.DrawTrianglesShaderOptions{
 		Uniforms: map[string]any{
-			"Encoding":      float32(opts.Encoding),
-			"EncodingScale": float32(opts.EncodingScale),
+			"Encoding": float32(opts.Encoding),
+			"Scale":    float32(opts.EncodingScale),
 		},
 		Images: [4]*ebiten.Image{
 			s,

@@ -22,11 +22,11 @@ var Encoding float
 var Scale float
 
 func Fragment(dst vec4, src vec2, color vec4) vec4 {
-	uv := (src-imageSrc0Origin())/imageSrc0Size()*2 - 1
-	uv2 := unpackUV(imageSrc0At(src))*2 - 1
+	uv := (src - imageSrc0Origin()) / imageSrc0Size()
+	uv2 := unpackUV(imageSrc0At(src))
 	if Encoding == EncodingUV {
-		return vec4((uv2.xy+1)/2, 0, 1)
+		return vec4(uv2.xy, 0, 1)
 	}
 	// Distance
-	return vec4(vec3(length(uv-uv2)), 1.)
+	return vec4(vec3(length(uv-uv2)*Scale), 1.)
 }
