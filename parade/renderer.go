@@ -51,7 +51,6 @@ func (r *Renderer) DrawLayers(screen *ebiten.Image, layers []*Layer, opts *DrawL
 	/*sort.SliceStable(layers, func(i int, j int) bool {
 		return layers[i].Z > layers[j].Z
 	})*/
-	println("x, y", screen.Bounds().Dx(), screen.Bounds().Dy())
 	for _, l := range layers {
 		var boxmapped float32
 

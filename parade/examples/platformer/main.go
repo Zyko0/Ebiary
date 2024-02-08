@@ -27,7 +27,7 @@ type Game struct {
 
 func NewGame() *Game {
 	return &Game{
-		renderer: parade.NewRenderer(ScreenWidth, ScreenHeight, 750),
+		renderer: parade.NewRenderer(ScreenWidth, ScreenHeight, 1000),
 		player:   game.NewPlayer(),
 	}
 }
@@ -96,41 +96,17 @@ func (g *Game) Draw(screen *ebiten.Image) {
 
 	g.renderer.DrawLayers(screen,
 		[]*parade.Layer{
-			/*{
-				Z:       0,
-				Depth:   250,
-				Diffuse: assets.ImageLayerPillarsColor,
-				Height:  assets.ImageLayerPillarsDepth,
-			},*/
-			/*{
+			{
 				Z:       250,
-				Depth:   55,
-				Diffuse: assets.ImageLayerPillarsFront,
-				Height:  assets.ImageLayerPillarsFront,
-			},
-			{
-				Z:       300,
-				Depth:   50,
-				Diffuse: assets.ImageLayerPillarsBack,
-				Height:  assets.ImageLayerPillarsBack,
-			},*/
-			{
-				Z:       0,
-				Depth:   250,
-				Diffuse: game.PlatformLayerDepthImage,
-				Height:  game.PlatformLayerDepthImage,
-			},
-			/*{
-				Z:       250,
-				Depth:   250,
-				Diffuse: assets.ImageLayerPillarsColor,
-				Height:  assets.ImageLayerPillarsDepth,
-			},*/
-			{
-				Z:       500,
 				Depth:   250,
 				Diffuse: game.ImageLayerPillarsColor,
 				Height:  game.ImageLayerPillarsDepth,
+			},
+			{
+				Z:       0,
+				Depth:   100,
+				Diffuse: game.PlatformLayerDepthImage,
+				Height:  game.PlatformLayerDepthImage,
 			},
 		},
 		&parade.DrawLayersOptions{

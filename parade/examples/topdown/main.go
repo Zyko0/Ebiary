@@ -23,11 +23,13 @@ const (
 
 type Game struct {
 	renderer *parade.Renderer
+
+	entitiesImage *ebiten.Image
 }
 
 func NewGame() *Game {
 	return &Game{
-		renderer: parade.NewRenderer(ScreenWidth, ScreenHeight, 60),
+		renderer: parade.NewRenderer(ScreenWidth, ScreenHeight, 50),
 	}
 }
 
