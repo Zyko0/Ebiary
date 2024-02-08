@@ -1,0 +1,286 @@
+//kage:unit pixels
+
+package main
+
+const (
+	MinLayers = 128.0
+	MaxLayers = 256.0
+)
+
+// Texture data fetching
+
+func fetchDepth(uv vec2) vec4 {
+	return imageSrc0UnsafeAt(uv + CameraPosition.xy)
+}
+
+func fetchColor(uv vec2) vec4 {
+	return imageSrc1UnsafeAt(uv + CameraPosition.xy)
+}
+
+func toUV(p vec3) vec2 {
+	return p.xy + ScreenSize/2 + imageSrc0Origin()
+}
+
+// Texture mapping
+
+// "p" point apply texture to
+// "n" normal at "p"
+// "k" controls the sharpness of the blending in the
+// transitions areas.
+func boxmapColor(p, n vec3, k float) vec4 {
+	// TODO: unclear atm
+	p.xy += CameraPosition.xy + LayerSize/2
+
+	origin := imageSrc0Origin()
+	x := imageSrc1UnsafeAt(p.zy + vec2(CameraPosition.x, 0) + origin)
+	y := imageSrc1UnsafeAt(p.xz + vec2(0, CameraPosition.y) + origin)
+	z := imageSrc1UnsafeAt(p.xy + origin)
+
+	// Blend
+	m := pow(abs(n), vec3(k))
+	return (x*m.x + y*m.y + z*m.z) / (m.x + m.y + m.z)
+}
+
+// Light
+
+func phong(lightDir, normal, clr vec3) vec3 {
+	// ambient
+	ambient := clr * 0.25
+
+	// diffuse
+	dotLN := clamp(dot(lightDir, normal), 0., 1.)
+	diffuse := clr * dotLN
+
+	// specular
+	halfwayDir := normalize(lightDir + normal)
+	specular := vec3(0.25) * pow(max(dot(normal, halfwayDir), 0.), 64.)
+
+	return ambient + diffuse + specular
+}
+
+func sdScene(p, rd vec3, depthFactor float) float {
+	//return length(p-vec3(0, 0, 50)) - 50
+	q := abs(p.xy) - LayerSize/2
+	_ = q
+	if q.x <= 0 && q.y <= 0 {
+		/*if clr.a <= 0.9 {
+			return 1
+		}*/
+		clr := fetchDepth(toUV(p))
+		return (1-clr.x)*depthFactor - p.z
+	}
+	return 1
+}
+
+func parallax(uv vec2, rd vec3, depthFactor float) (vec2, float, bool) {
+	// number of depth layers
+	numLayers := mix(MaxLayers, MinLayers, max(dot(vec3(0, 0, 1), rd), 0))
+	numLayers = mix(depthFactor/32, depthFactor/2, max(dot(vec3(0, 0, 1), rd), 0))
+	numLayers = depthFactor
+	//numLayers = 128 // TODO:
+	// calculate the size of each layer
+	layerDepth := 1.0 / numLayers
+	// the amount to shift the texture coordinates per layer (from vector P)
+	p := rd.xyz * depthFactor
+	deltap := p / numLayers
+
+	// get initial values
+	/*cuv := uv
+	currentDepth := fetchData(cuv).r
+	currentLayerDepth := 0. //0.2
+	for i := 0; i < 1024; i++ {
+		if currentLayerDepth > 1. {
+			return vec2(0), 0, false
+		}
+		if currentLayerDepth < currentDepth {
+			break
+		}
+		cuv -= deltap.xy
+
+		// original
+		currentDepth = fetchData(cuv).r
+		currentLayerDepth += layerDepth
+	}*/
+	cuv := uv
+	currentDepth := fetchDepth(cuv).r
+	//return uv, currentDepth, true
+	currentLayerDepth := 1. //0.2
+	for i := 0; i < 1024; i++ {
+		if currentLayerDepth < 0. {
+			return vec2(0), 0, false
+		}
+		if currentLayerDepth < currentDepth {
+			break
+		}
+		cuv -= deltap.xy
+
+		// original
+		currentDepth = fetchDepth(cuv).r
+		currentLayerDepth -= layerDepth
+	}
+
+	// get texture coordinates before collision (reverse operations)
+	/*prevuv := cuv + deltap.xy
+
+	// get depth after and before collision for linear interpolation
+	afterDepth := currentDepth - currentLayerDepth
+	beforeDepth := fetchDepth(prevuv).r - currentLayerDepth + layerDepth
+
+	// interpolation of texture coordinates
+	weight := afterDepth / (afterDepth - beforeDepth)
+	cuv = prevuv*weight + cuv*(1.0-weight)
+	currentDepth = weight*/
+
+	return cuv, currentDepth - currentLayerDepth, true //*depthFactor
+}
+
+func calcNormal(p, rd vec3, depthFactor float) vec3 {
+	factor := 1. //imageSrc0Size().xy// / size //0.5 //0.5 //1500. / size
+	e := vec2(1., -1.) * factor
+	n := -normalize(sdScene(p+e.xyy, rd, depthFactor)*e.xyy +
+		sdScene(p+e.yyx, rd, depthFactor)*e.yyx +
+		sdScene(p+e.yxy, rd, depthFactor)*e.yxy +
+		sdScene(p+e.xxx, rd, depthFactor)*e.xxx,
+	)
+	// TODO: attempt hack for very pixelated edges
+	/*if length(n-fwidth(n)) > 1 {
+		e *= 2
+		return -normalize(sdScene(p+e.xyy, rd, depthFactor)*e.xyy +
+			sdScene(p+e.yyx, rd, depthFactor)*e.yyx +
+			sdScene(p+e.yxy, rd, depthFactor)*e.yxy +
+			sdScene(p+e.xxx, rd, depthFactor)*e.xxx,
+		)
+		//return vec3(0)
+	}*/
+
+	return n
+}
+
+// https://iquilezles.org/articles/boxfunctions
+// License MIT: https://www.shadertoy.com/view/ld23DV
+func iBox(ro, rd, bb vec3) vec2 { //vec4 {
+	m := 1. / rd
+	n := m * ro
+	k := abs(m) * bb
+	t1 := -n - k
+	t2 := -n + k
+
+	tN := max(max(t1.x, t1.y), t1.z)
+	tF := min(min(t2.x, t2.y), t2.z)
+
+	if tN > tF || tF < 0 {
+		return vec2(-1) // return vec4(-1)
+	}
+
+	return vec2(tN, tF)
+	/*res := vec4(tN, step(tN, t1))
+	res.yzw = (vec4(-sign(rd)*res.yzw, 0)).xyz
+
+	return res*/
+}
+
+/*func softShadow(ro, rd vec3, mint, tmax float) float {
+	const (
+		MaxSteps = 16.
+		Precision = 0.001
+	)
+
+	res := 1.
+	t := mint
+	for i := 0.; i < MaxSteps; i++ {
+		h := sdScene(ro + rd * t)[0].x
+		res = min(res, 8.*h/t)
+		t += clamp(h, 0.02, 0.10)
+		if h < Precision || t > tmax {
+			break
+		}
+	}
+
+	return clamp(res, 0., 1.)
+}*/
+
+var (
+	Normal   float
+	Specular float
+)
+
+var (
+	ScreenSize vec2
+	LayerSize  vec2
+)
+
+var (
+	CameraPVMatrixInv mat4
+	CameraPosition    vec3
+	LightPosition     vec3
+)
+
+func Fragment(dst vec4, src vec2, color vec4) vec4 {
+	const pi = 3.1415
+
+	startingDepth := color.r
+	depthFactor := color.g //* 10 //* 0.125
+	origin := imageSrc0Origin()
+	//size := imageSrc0Size()
+	halfsize := ScreenSize / 2
+	uv := src.xy - origin - halfsize
+	uv = -uv // TODO: idk why
+
+	ro := vec3(uv.x, uv.y, 0)
+
+	rd := normalize(
+		vec3(uv, max(halfsize.x, halfsize.y)),
+	)
+
+	/* Camera attempt */
+	//return vec4(1)
+	near4 := CameraPVMatrixInv * normalize(vec4(uv/halfsize, -1, 1))
+	far4 := CameraPVMatrixInv * normalize(vec4(uv/halfsize, 1, 1))
+	far3 := far4.xyz / far4.w
+	_ = near4
+	// Ray calculation
+	//ro = near4.xyz / near4.w
+	rd = normalize(far3)
+	//return vec4(1)
+	/* End camera attempt */
+
+	ibb := vec3(LayerSize/2, depthFactor)
+	// Discard if outside the projected box
+	dib := iBox(ro-vec3(0, 0, startingDepth+depthFactor), rd, ibb)
+	if dib.x == -1 && dib.y == -1 {
+		return vec4(0, 1, 0, 1)
+		//discard()
+		//return
+		//return vec4(1, 0, 0, 1) // TODO: discard
+	}
+	ro = ro + rd*dib.x
+	//return vec4(1)
+
+	tuv, d, ok := parallax(toUV(-ro), rd, depthFactor)
+	//if !ok || tuv.x > origin.x+LayerSize.x || tuv.x < origin.x || tuv.y > origin.y+LayerSize.y || tuv.y+CameraPosition.y < origin.y {
+	if !ok || tuv.x+CameraPosition.x < origin.x ||
+		tuv.y+CameraPosition.y < origin.y ||
+		tuv.x+CameraPosition.x > origin.x+LayerSize.x ||
+		tuv.y+CameraPosition.y > origin.y+LayerSize.y {
+		return vec4(0, 0, 1, 1)
+		discard()
+		return
+	}
+
+	p := vec3(tuv-imageSrc0Origin()-halfsize, d*depthFactor)
+	//return vec4(clr.rgb, 1.) * clr.a
+	//p = vec3(uv.x, uv.y, 0) + rd*(d*depthFactor)
+	normal := calcNormal(p, rd, depthFactor)
+
+	clr := fetchColor(tuv)
+	//clr := boxmapColor(p, normal, 1.)
+
+	return vec4((normal+1)/2, 1) // TODO: normal debug
+	//clr.rgb = normalize(vec3(tuv-halfsize-imageSrc0Origin(), p.z)) // TODO: debug colors
+	//return vec4(clr.rgb, 1)
+	lpos := vec3(0, -250, -1200)
+	ldir := normalize(p - lpos)
+	clr.rgb = phong(ldir, normal, clr.rgb)
+
+	return vec4(clr.rgb, 1.) * clr.a
+}
