@@ -35,12 +35,22 @@ func toUV(p vec3) vec2 {
 // transitions areas.
 func boxmapColor(p, n vec3, k float) vec4 {
 	// TODO: unclear atm
+	pxy := p.xy
+	_ = pxy
 	p.xy += CameraPosition.xy + LayerSize/2
 	p.z = abs(p.z)
 	origin := imageSrc0Origin()
-	x := imageSrc1UnsafeAt(p.zy + vec2(CameraPosition.x, 0) + origin)
+	if p.y < 128 {
+		//return vec4(0,1,0,1)
+	}
+	/*x := imageSrc1UnsafeAt(p.zy + vec2(CameraPosition.x, 0) + origin)
 	y := imageSrc1UnsafeAt(p.xz + vec2(0, CameraPosition.y) + origin)
+	z := imageSrc1UnsafeAt(p.xy + origin)*/
+	sn := -sign(n)
+	x := imageSrc1UnsafeAt(vec2((p.x+64*sn.x)-p.z*sn.x, p.y) + vec2(CameraPosition.x, 0) + origin)
+	y := imageSrc1UnsafeAt(vec2(p.x, (p.y+64*sn.y)-p.z*sn.y) + vec2(0, CameraPosition.y) + origin)
 	z := imageSrc1UnsafeAt(p.xy + origin)
+	//return x
 
 	// Blend
 	m := pow(abs(n), vec3(k))
@@ -81,21 +91,19 @@ func sdScene(p, rd vec3, depthFactor float) float {
 func parallax(uv vec2, rd vec3, depthFactor float) (vec2, float, bool) {
 	// number of depth layers
 	rd /= rd.z
-	testrd := max(dot(rd.xy, rd.xy), 0)
-	testrd = length(rd.xy)
+	testrd := max(length(rd.xy), 0.1)
 	//testrd = clamp(0, 1, testrd)
 	numLayers := mix(MaxLayers, MinLayers, max(dot(vec3(0, 0, 1), rd), 0))
 	numLayers = mix(depthFactor/64, depthFactor, max(dot(vec3(0, 0, 0.25), rd), 0))
 	numLayers = mix(1, depthFactor, testrd)
 	//rd /= rd.z
-	//numLayers = depthFactor
+	//numLayers = depthFactor // TODO: debug
 	//numLayers = depthFactor
 	//numLayers /= 4
 	//numLayers = 128 // TODO:
 	// calculate the size of each layer
 	layerDepth := 1.0 / numLayers
 	// the amount to shift the texture coordinates per layer (from vector P)
-	//rd /= rd.z
 	p := rd.xyz * depthFactor
 	deltap := p / numLayers
 
@@ -290,7 +298,7 @@ func Fragment(dst vec4, src vec2, color vec4) vec4 {
 	//return vec4(1)
 	/* End camera attempt */
 
-	ibb := vec3(LayerSize/2, 0.01)
+	ibb := vec3(LayerSize/2, 0.) //0.01)
 	// Discard if outside the projected box
 	dib := iBox(ro-vec3(0, 0, startingDepth+depthFactor*ZDir), rd, ibb)
 	if dib.x == -1 && dib.y == -1 {
@@ -323,12 +331,12 @@ func Fragment(dst vec4, src vec2, color vec4) vec4 {
 	if BoxMapping < 0.5 {
 		clr = fetchColor(tuv)
 	} else {
-		clr = boxmapColor(p, normal, 1.)
+		clr = boxmapColor(p, normal, 1)
 	}
 
 	//return vec4((normal+1)/2, 1) // TODO: normal debug
 	//clr.rgb = normalize(vec3(tuv-halfsize-imageSrc0Origin(), p.z)) // TODO: debug colors
-	//return vec4(clr.rgb, 1)
+	return vec4(clr.rgb, 1)
 	lpos := vec3(0, -250, -50)
 	ldir := normalize(p - lpos)
 	clr.rgb = phong(ldir, normal, clr.rgb)

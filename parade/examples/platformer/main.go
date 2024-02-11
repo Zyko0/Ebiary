@@ -82,7 +82,7 @@ func (g *Game) Update() error {
 			g.player.State, g.player.StateTick = game.StateIdle, 0
 		}
 	}*/
-	fmt.Println("nearest", nearest)
+	//fmt.Println("nearest", nearest)
 	// Camera matrices update
 	camY := LayerHeight/2 - g.player.Y
 	g.renderer.Camera().SetPosition(g.player.X, camY, 0)

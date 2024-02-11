@@ -27,6 +27,9 @@ type Game struct {
 	renderer *parade.Renderer
 
 	player *game.Player
+	crates []game.Crate
+
+	roomX, roomY int
 
 	boxEntitiesDepth *ebiten.Image
 	boxEntitiesColor *ebiten.Image
@@ -39,6 +42,7 @@ func NewGame() *Game {
 		renderer: parade.NewRenderer(ScreenWidth, ScreenHeight, 1000, parade.Backward),
 
 		player: game.NewPlayer(),
+		crates: game.AppendRoomCrates(nil, 0, 0),
 
 		boxEntitiesDepth: ebiten.NewImage(LayerWidth, LayerHeight),
 		boxEntitiesColor: ebiten.NewImage(LayerWidth, LayerHeight),
@@ -55,7 +59,9 @@ func (g *Game) Update() error {
 		return ebiten.Termination
 	}
 	// Player update
+	x, y := g.player.X, g.player.Y
 	g.player.Update()
+	// Room border collisions
 	if g.player.X+game.PlayerSize/2 > LayerWidth-WallWidth {
 		g.player.X = LayerWidth - WallWidth - game.PlayerSize/2
 	}
@@ -68,7 +74,37 @@ func (g *Game) Update() error {
 	if g.player.Y-game.PlayerSize/2 < WallWidth {
 		g.player.Y = WallWidth + game.PlayerSize/2
 	}
-	// Floor collision
+	dx, dy := g.player.X-x, g.player.Y-y
+	// Crates collisions
+	for i := range g.crates {
+		if g.crates[i].Pushed(g.player) {
+			g.crates[i].X += dx
+			g.crates[i].Y += dy
+			var cx, cy float64
+			if g.crates[i].X+game.CrateSize/2 > LayerWidth-WallWidth {
+				cx = g.crates[i].X
+				g.crates[i].X = LayerWidth - WallWidth - game.CrateSize/2
+				cx -= g.crates[i].X
+			}
+			if g.crates[i].X-game.CrateSize/2 < WallWidth {
+				cx = g.crates[i].X
+				g.crates[i].X = WallWidth + game.CrateSize/2
+				cx -= g.crates[i].X
+			}
+			if g.crates[i].Y+game.CrateSize/2 > LayerHeight-WallWidth {
+				cy = g.crates[i].Y
+				g.crates[i].Y = LayerHeight - WallWidth - game.CrateSize/2
+				cy -= g.crates[i].Y
+			}
+			if g.crates[i].Y-game.CrateSize/2 < WallWidth {
+				cy = g.crates[i].Y
+				g.crates[i].Y = WallWidth + game.CrateSize/2
+				cy -= g.crates[i].Y
+			}
+			g.player.X -= cx
+			g.player.Y -= cy
+		}
+	}
 	//TODO:
 	// Find nearest platform
 
@@ -82,15 +118,15 @@ func (g *Game) Update() error {
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	//screen.DrawImage(game.ImageRocksColor, nil)
-	// Dynamic entities layer
-	c := game.Crate{
-		WallWidth + game.CrateSize/2, WallWidth + game.CrateSize/2,
-	}
 	// Crates
 	g.boxEntitiesDepth.Clear()
-	c.DrawDepth(g.boxEntitiesDepth)
+	for _, c := range g.crates {
+		c.DrawDepth(g.boxEntitiesDepth)
+	}
 	g.boxEntitiesColor.Clear()
-	c.DrawColor(g.boxEntitiesColor)
+	for _, c := range g.crates {
+		c.DrawColor(g.boxEntitiesColor)
+	}
 	// Player
 	g.entitiesDepth.Clear()
 	g.player.DrawDepth(g.entitiesDepth)
