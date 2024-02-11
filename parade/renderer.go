@@ -7,20 +7,29 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+type ZDirection int
+
+const (
+	Forward  ZDirection = 1
+	Backward ZDirection = -1
+)
+
 type Renderer struct {
 	width  float64
 	height float64
 	depth  float64
+	zdir   float64
 	camera *camera.CameraOrthographic
 }
 
-func NewRenderer(width, height, depth int) *Renderer {
+func NewRenderer(width, height, depth int, zdir ZDirection) *Renderer {
 	w, h, d := float64(width), float64(height), float64(depth)
 
 	return &Renderer{
 		width:  w,
 		height: h,
 		depth:  d,
+		zdir:   float64(zdir), // TODO: only retrieve the sign to be safe
 		camera: camera.NewOrthographic(w, h, d),
 	}
 }
@@ -40,6 +49,10 @@ func (r *Renderer) Camera() Camera {
 type DrawLayersOptions struct {
 	// Antialiasing uses the native AntiAlias draw option from ebitengine.
 	Antialiasing bool
+}
+
+func (r *Renderer) DrawPlane() {
+	// TODO:
 }
 
 func (r *Renderer) DrawLayers(screen *ebiten.Image, layers []*Layer, opts *DrawLayersOptions) {
@@ -85,6 +98,7 @@ func (r *Renderer) DrawLayers(screen *ebiten.Image, layers []*Layer, opts *DrawL
 				"LayerSize": []float32{
 					float32(lb.Dx()), float32(lb.Dy()),
 				},
+				"ZDir":       r.zdir,
 				"BoxMapping": boxmapped,
 
 				"CameraPVMatrixInv": pvinv[:],

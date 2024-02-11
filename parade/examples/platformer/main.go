@@ -27,7 +27,7 @@ type Game struct {
 
 func NewGame() *Game {
 	return &Game{
-		renderer: parade.NewRenderer(ScreenWidth, ScreenHeight, 1000),
+		renderer: parade.NewRenderer(ScreenWidth, ScreenHeight, 1000, parade.Forward),
 		player:   game.NewPlayer(),
 	}
 }
@@ -97,13 +97,13 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	g.renderer.DrawLayers(screen,
 		[]*parade.Layer{
 			{
-				Z:       250,
+				Z:       500,
 				Depth:   250,
 				Diffuse: game.ImageLayerPillarsColor,
 				Height:  game.ImageLayerPillarsDepth,
 			},
 			{
-				Z:       0,
+				Z:       50,
 				Depth:   100,
 				Diffuse: game.PlatformLayerDepthImage,
 				Height:  game.PlatformLayerDepthImage,

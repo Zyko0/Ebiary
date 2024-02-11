@@ -71,7 +71,7 @@ func init() {
 				}
 				opts.GeoM.Translate(
 					x*PlatformXSpacing,
-					1440-y*PlatformYSpacing+yoff,
+					1440-y*PlatformYSpacing+yoff+PlatformHeight,
 				)
 				PlatformLayerDepthImage.DrawImage(whiteImg, opts)
 			}

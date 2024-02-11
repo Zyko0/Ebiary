@@ -3,6 +3,7 @@ package game
 import (
 	"bytes"
 	_ "embed"
+	"image/color"
 	"image/png"
 	"log"
 
@@ -10,7 +11,7 @@ import (
 )
 
 var (
-	// Background
+	ImageWhite *ebiten.Image
 
 	//go:embed images/rocks_color.png
 	srcRocksColor   []byte
@@ -31,9 +32,24 @@ var (
 	//go:embed images/roof_depth.png
 	srcRoofDepth   []byte
 	ImageRoofDepth *ebiten.Image
+
+	//go:embed images/crate_color.png
+	srcCrateColor   []byte
+	ImageCrateColor *ebiten.Image
+
+	//go:embed images/player_depth.png
+	srcPlayerDepth   []byte
+	ImagePlayerDepth *ebiten.Image
+
+	//go:embed images/player_color.png
+	srcPlayerColor   []byte
+	ImagePlayerColor *ebiten.Image
 )
 
 func init() {
+	ImageWhite = ebiten.NewImage(1, 1)
+	ImageWhite.Fill(color.White)
+
 	// Rocks color
 
 	img, err := png.Decode(bytes.NewReader(srcRocksColor))
@@ -72,6 +88,23 @@ func init() {
 	}
 	ImageRoofDepth = ebiten.NewImageFromImage(img)
 
-	// Sprites
+	// Entities
 
+	img, err = png.Decode(bytes.NewReader(srcCrateColor))
+	if err != nil {
+		log.Fatal(err)
+	}
+	ImageCrateColor = ebiten.NewImageFromImage(img)
+
+	img, err = png.Decode(bytes.NewReader(srcPlayerDepth))
+	if err != nil {
+		log.Fatal(err)
+	}
+	ImagePlayerDepth = ebiten.NewImageFromImage(img)
+
+	img, err = png.Decode(bytes.NewReader(srcPlayerColor))
+	if err != nil {
+		log.Fatal(err)
+	}
+	ImagePlayerColor = ebiten.NewImageFromImage(img)
 }

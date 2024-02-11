@@ -36,7 +36,7 @@ func toUV(p vec3) vec2 {
 func boxmapColor(p, n vec3, k float) vec4 {
 	// TODO: unclear atm
 	p.xy += CameraPosition.xy + LayerSize/2
-
+	p.z = abs(p.z)
 	origin := imageSrc0Origin()
 	x := imageSrc1UnsafeAt(p.zy + vec2(CameraPosition.x, 0) + origin)
 	y := imageSrc1UnsafeAt(p.xz + vec2(0, CameraPosition.y) + origin)
@@ -73,20 +73,29 @@ func sdScene(p, rd vec3, depthFactor float) float {
 			return 1
 		}*/
 		clr := fetchDepth(toUV(p))
-		return (1-clr.x)*depthFactor - p.z
+		return (1-clr.x*clr.w)*depthFactor - p.z
 	}
 	return 1
 }
 
 func parallax(uv vec2, rd vec3, depthFactor float) (vec2, float, bool) {
 	// number of depth layers
+	rd /= rd.z
+	testrd := max(dot(rd.xy, rd.xy), 0)
+	testrd = length(rd.xy)
+	//testrd = clamp(0, 1, testrd)
 	numLayers := mix(MaxLayers, MinLayers, max(dot(vec3(0, 0, 1), rd), 0))
-	numLayers = mix(depthFactor/32, depthFactor/2, max(dot(vec3(0, 0, 1), rd), 0))
-	numLayers = depthFactor
+	numLayers = mix(depthFactor/64, depthFactor, max(dot(vec3(0, 0, 0.25), rd), 0))
+	numLayers = mix(1, depthFactor, testrd)
+	//rd /= rd.z
+	//numLayers = depthFactor
+	//numLayers = depthFactor
+	//numLayers /= 4
 	//numLayers = 128 // TODO:
 	// calculate the size of each layer
 	layerDepth := 1.0 / numLayers
 	// the amount to shift the texture coordinates per layer (from vector P)
+	//rd /= rd.z
 	p := rd.xyz * depthFactor
 	deltap := p / numLayers
 
@@ -121,7 +130,8 @@ func parallax(uv vec2, rd vec3, depthFactor float) (vec2, float, bool) {
 		cuv -= deltap.xy
 
 		// original
-		currentDepth = fetchDepth(cuv).r
+		data := fetchDepth(cuv)
+		currentDepth = data.r * data.a
 		currentLayerDepth -= layerDepth
 	}
 
@@ -129,13 +139,22 @@ func parallax(uv vec2, rd vec3, depthFactor float) (vec2, float, bool) {
 	/*prevuv := cuv + deltap.xy
 
 	// get depth after and before collision for linear interpolation
-	afterDepth := currentDepth - currentLayerDepth
-	beforeDepth := fetchDepth(prevuv).r - currentLayerDepth + layerDepth
+	afterDepth := 1 - (currentDepth - layerDepth)
+	beforeDepth := 1 - fetchDepth(prevuv).r + layerDepth + currentDepth
 
 	// interpolation of texture coordinates
 	weight := afterDepth / (afterDepth - beforeDepth)
-	cuv = prevuv*weight + cuv*(1.0-weight)
-	currentDepth = weight*/
+	_ = weight
+	//weight = afterDepth / (afterDepth + beforeDepth)
+	cuv = prevuv*weight + cuv*(1.0-weight)*/
+	//cuv = mix(prevuv, cuv, weight)
+	//currentDepth = 1-weight
+	//cuv += vec2(-250,500)
+	//currentDepth = 0//beforeDepth + currentDepth*weight
+
+	return cuv, currentDepth - currentLayerDepth, true
+	//currentDepth -= weight*layerDepth
+	//currentLayerDepth -= layerDepth*weight
 
 	return cuv, currentDepth - currentLayerDepth, true //*depthFactor
 }
@@ -213,6 +232,7 @@ var (
 var (
 	ScreenSize vec2
 	LayerSize  vec2
+	ZDir       float
 	BoxMapping float
 )
 
@@ -264,14 +284,17 @@ func Fragment(dst vec4, src vec2, color vec4) vec4 {
 	//rd = lookAt(vec3(0), vec3(0, 0, 1), 0.) * normalize(vec3(0., 0., 1))
 	//ro = near4.xyz / near4.w
 	rd = normalize(far3) // TODO: distorsion
+	//return vec4(vec3(abs(rd.y)), 1)
+	//rdt := vec3(0)
+	//rd.z *= ZDir
 	//return vec4(1)
 	/* End camera attempt */
 
-	ibb := vec3(LayerSize/2, depthFactor)
+	ibb := vec3(LayerSize/2, 0.01)
 	// Discard if outside the projected box
-	dib := iBox(ro-vec3(0, 0, startingDepth+depthFactor), rd, ibb)
+	dib := iBox(ro-vec3(0, 0, startingDepth+depthFactor*ZDir), rd, ibb)
 	if dib.x == -1 && dib.y == -1 {
-		return vec4(0, 1, 0, 1)
+		//return vec4(0, 1, 0, 1)
 		discard()
 		return
 		//return vec4(1, 0, 0, 1) // TODO: discard
@@ -280,6 +303,7 @@ func Fragment(dst vec4, src vec2, color vec4) vec4 {
 	//return vec4(1)
 
 	tuv, d, ok := parallax(toUV(-ro), rd, depthFactor)
+	_ = ok
 	//if !ok || tuv.x > origin.x+LayerSize.x || tuv.x < origin.x || tuv.y > origin.y+LayerSize.y || tuv.y+CameraPosition.y < origin.y {
 	if !ok || tuv.x+CameraPosition.x < origin.x ||
 		tuv.y+CameraPosition.y < origin.y ||
@@ -290,7 +314,7 @@ func Fragment(dst vec4, src vec2, color vec4) vec4 {
 		return
 	}
 
-	p := vec3(tuv-imageSrc0Origin()-halfsize, d*depthFactor)
+	p := vec3(tuv-imageSrc0Origin()-halfsize, startingDepth+d*depthFactor*ZDir)
 	//return vec4(clr.rgb, 1.) * clr.a
 	//p = vec3(uv.x, uv.y, 0) + rd*(d*depthFactor)
 	normal := calcNormal(p, rd, depthFactor)
@@ -305,7 +329,7 @@ func Fragment(dst vec4, src vec2, color vec4) vec4 {
 	//return vec4((normal+1)/2, 1) // TODO: normal debug
 	//clr.rgb = normalize(vec3(tuv-halfsize-imageSrc0Origin(), p.z)) // TODO: debug colors
 	//return vec4(clr.rgb, 1)
-	lpos := vec3(0, -250, -1200)
+	lpos := vec3(0, -250, -50)
 	ldir := normalize(p - lpos)
 	clr.rgb = phong(ldir, normal, clr.rgb)
 
