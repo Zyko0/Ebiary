@@ -38,7 +38,7 @@ type Game struct {
 
 func NewGame() *Game {
 	return &Game{
-		renderer: parade.NewRenderer(ScreenWidth, ScreenHeight, 1024, parade.Backward),
+		renderer: parade.NewRenderer(ScreenWidth, ScreenHeight, 1000, parade.Backward),
 
 		player: game.NewPlayer(),
 		crate: &game.Crate{
