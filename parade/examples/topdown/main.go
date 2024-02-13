@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"image"
 	"log"
 
 	"github.com/Zyko0/Ebiary/parade"
@@ -14,8 +13,8 @@ import (
 
 const (
 	TPS          = 60
-	ScreenWidth  = 1280
-	ScreenHeight = 1280
+	ScreenWidth  = 1024 //1280
+	ScreenHeight = 1024 //1280
 
 	LayerWidth  = 1024
 	LayerHeight = 1024
@@ -27,7 +26,7 @@ type Game struct {
 	renderer *parade.Renderer
 
 	player *game.Player
-	crates []game.Crate
+	crate  *game.Crate
 
 	roomX, roomY int
 
@@ -39,10 +38,13 @@ type Game struct {
 
 func NewGame() *Game {
 	return &Game{
-		renderer: parade.NewRenderer(ScreenWidth, ScreenHeight, 1000, parade.Backward),
+		renderer: parade.NewRenderer(ScreenWidth, ScreenHeight, 1024, parade.Backward),
 
 		player: game.NewPlayer(),
-		crates: game.AppendRoomCrates(nil, 0, 0),
+		crate: &game.Crate{
+			X: LayerWidth / 2,
+			Y: LayerHeight / 2,
+		},
 
 		boxEntitiesDepth: ebiten.NewImage(LayerWidth, LayerHeight),
 		boxEntitiesColor: ebiten.NewImage(LayerWidth, LayerHeight),
@@ -58,6 +60,7 @@ func (g *Game) Update() error {
 	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
 		return ebiten.Termination
 	}
+
 	// Player update
 	x, y := g.player.X, g.player.Y
 	g.player.Update()
@@ -76,176 +79,109 @@ func (g *Game) Update() error {
 	}
 	dx, dy := g.player.X-x, g.player.Y-y
 	// Crates collisions
-	for i := range g.crates {
-		if g.crates[i].Pushed(g.player) {
-			g.crates[i].X += dx
-			g.crates[i].Y += dy
-			var cx, cy float64
-			if g.crates[i].X+game.CrateSize/2 > LayerWidth-WallWidth {
-				cx = g.crates[i].X
-				g.crates[i].X = LayerWidth - WallWidth - game.CrateSize/2
-				cx -= g.crates[i].X
-			}
-			if g.crates[i].X-game.CrateSize/2 < WallWidth {
-				cx = g.crates[i].X
-				g.crates[i].X = WallWidth + game.CrateSize/2
-				cx -= g.crates[i].X
-			}
-			if g.crates[i].Y+game.CrateSize/2 > LayerHeight-WallWidth {
-				cy = g.crates[i].Y
-				g.crates[i].Y = LayerHeight - WallWidth - game.CrateSize/2
-				cy -= g.crates[i].Y
-			}
-			if g.crates[i].Y-game.CrateSize/2 < WallWidth {
-				cy = g.crates[i].Y
-				g.crates[i].Y = WallWidth + game.CrateSize/2
-				cy -= g.crates[i].Y
-			}
-			g.player.X -= cx
-			g.player.Y -= cy
+	if g.crate.Pushed(g.player) {
+		// Push the crate in the player's direction
+		g.crate.X += dx
+		g.crate.Y += dy
+		// Check if crates collide with a wall
+		var cx, cy float64
+		if g.crate.X+game.CrateSize/2 > LayerWidth-WallWidth {
+			cx = g.crate.X
+			g.crate.X = LayerWidth - WallWidth - game.CrateSize/2
+			cx -= g.crate.X
 		}
+		if g.crate.X-game.CrateSize/2 < WallWidth {
+			cx = g.crate.X
+			g.crate.X = WallWidth + game.CrateSize/2
+			cx -= g.crate.X
+		}
+		if g.crate.Y+game.CrateSize/2 > LayerHeight-WallWidth {
+			cy = g.crate.Y
+			g.crate.Y = LayerHeight - WallWidth - game.CrateSize/2
+			cy -= g.crate.Y
+		}
+		if g.crate.Y-game.CrateSize/2 < WallWidth {
+			cy = g.crate.Y
+			g.crate.Y = WallWidth + game.CrateSize/2
+			cy -= g.crate.Y
+		}
+		g.player.X -= cx
+		g.player.Y -= cy
 	}
-	//TODO:
-	// Find nearest platform
+	// Doors mechanisms
+	for _, d := range game.Doors {
+		if d.DistanceTo(g.player) < game.DoorTriggerDistance {
+			d.TriggerActivation(true)
+		} else {
+			d.TriggerActivation(false)
+		}
+		d.Update()
+	}
 
-	// Camera matrices update
-	/*camY := LayerHeight/2 - g.player.Y
-	g.camera.SetPosition(g.player.X, camY, 0)*/
 	g.renderer.Update()
 
 	return nil
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
-	//screen.DrawImage(game.ImageRocksColor, nil)
 	// Crates
 	g.boxEntitiesDepth.Clear()
-	for _, c := range g.crates {
-		c.DrawDepth(g.boxEntitiesDepth)
+	for _, d := range game.Doors {
+		d.DrawDepth(g.boxEntitiesDepth)
 	}
+	g.crate.DrawDepth(g.boxEntitiesDepth)
 	g.boxEntitiesColor.Clear()
-	for _, c := range g.crates {
-		c.DrawColor(g.boxEntitiesColor)
+	for _, d := range game.Doors {
+		d.DrawColor(g.boxEntitiesColor)
 	}
+	g.crate.DrawColor(g.boxEntitiesColor)
 	// Player
 	g.entitiesDepth.Clear()
 	g.player.DrawDepth(g.entitiesDepth)
 	g.entitiesColor.Clear()
 	g.player.DrawColor(g.entitiesColor)
 	// Layers
-	g.renderer.DrawLayers(screen.SubImage(image.Rect(0, 0, 1024, 1024)).(*ebiten.Image),
-		[]*parade.Layer{
-			{
-				Z:       WallsHeight,
-				Depth:   10,
-				Diffuse: game.ImageFloorColor,
-				Height:  game.ImageFloorDepth,
-			},
-			{
-				Z:         WallsHeight,
-				Depth:     WallsHeight,
-				Diffuse:   game.ImageRocksColor,
-				Height:    game.ImageWallsDepth,
-				BoxMapped: true,
-			},
-			{
-				Z:         WallsHeight,
-				Depth:     game.CrateSize,
-				Diffuse:   g.boxEntitiesColor,
-				Height:    g.boxEntitiesDepth,
-				BoxMapped: true,
-			},
-			{
-				Z:       WallsHeight,
-				Depth:   game.PlayerHeight,
-				Diffuse: g.entitiesColor,
-				Height:  g.entitiesDepth,
-			},
-			{
-				Z:         25,
-				Depth:     25,
-				Diffuse:   game.ImageRocksColor,
-				Height:    game.ImageRoofDepth,
-				BoxMapped: true,
-			},
-			/*
-				{
-					Z:       WallsHeight - 10,
-					Depth:   10,
-					Diffuse: game.ImageFloorColor,
-					Height:  game.ImageFloorDepth,
-				},
-				{
-					Z:         0,
-					Depth:     WallsHeight,
-					Diffuse:   game.ImageRocksColor,
-					Height:    game.ImageWallsDepth,
-					BoxMapped: true,
-				},
-				{
-					Z:         WallsHeight - game.CrateSize,
-					Depth:     WallsHeight,
-					Diffuse:   g.boxEntitiesColor,
-					Height:    g.boxEntitiesDepth,
-					BoxMapped: true,
-				},
-				{
-					Z:       WallsHeight - game.PlayerHeight,
-					Depth:   game.PlayerHeight,
-					Diffuse: g.entitiesColor,
-					Height:  g.entitiesDepth,
-				},
-				{
-					Z:         0,
-					Depth:     25,
-					Diffuse:   game.ImageRocksColor,
-					Height:    game.ImageRoofDepth,
-					BoxMapped: true,
-				},*/
-			/*{
-				Z:       0,
-				Depth:   10,
-				Diffuse: game.ImageFloorColor,
-				Height:  game.ImageFloorDepth,
-			},
-			{
-				Z:         0,
-				Depth:     WallsHeight,
-				Diffuse:   game.ImageRocksColor,
-				Height:    game.ImageWallsDepth,
-				BoxMapped: true,
-			},
-			{
-				Z:         0,
-				Depth:     25,
-				Diffuse:   game.ImageRocksColor,
-				Height:    game.ImageRoofDepth,
-				BoxMapped: true,
-			},
-			{
-				Z:         WallsHeight + game.CrateSize,
-				Depth:     game.CrateSize,
-				Diffuse:   g.boxEntitiesColor,
-				Height:    g.boxEntitiesDepth,
-				BoxMapped: true,
-			},
-			{
-				Z:       WallsHeight + game.PlayerHeight,
-				Depth:   game.PlayerHeight,
-				Diffuse: g.entitiesColor,
-				Height:  g.entitiesDepth,
-			},*/
+	g.renderer.DrawLayers(screen, []*parade.Layer{
+		// Floor
+		{
+			Z:       WallsHeight,
+			Depth:   10,
+			Diffuse: game.ImageFloorColor,
+			Height:  game.ImageFloorDepth,
 		},
-		&parade.DrawLayersOptions{
-			/*OffsetX:      0,
-			OffsetY:      0,*/
-			//Antialiasing: true,
+		// Room walls
+		{
+			Z:         WallsHeight,
+			Depth:     WallsHeight,
+			Diffuse:   game.ImageRocksColor,
+			Height:    game.ImageWallsDepth,
+			BoxMapped: true,
 		},
+		// Crates and doors
+		{
+			Z:         WallsHeight,
+			Depth:     WallsHeight,
+			Diffuse:   g.boxEntitiesColor,
+			Height:    g.boxEntitiesDepth,
+			BoxMapped: true,
+		},
+		// Player
+		{
+			Z:       WallsHeight,
+			Depth:   game.PlayerHeight,
+			Diffuse: g.entitiesColor,
+			Height:  g.entitiesDepth,
+		},
+		// Walls roof
+		{
+			Z:         25,
+			Depth:     25,
+			Diffuse:   game.ImageRocksColor,
+			Height:    game.ImageRoofDepth,
+			BoxMapped: true,
+		},
+	}, nil,
 	)
-
-	// Draw player
-	//g.player.Draw(screen) // TODO:
-	//screen.DrawImage(game.PlatformLayerDepthImage, nil)
 
 	ebitenutil.DebugPrint(screen,
 		fmt.Sprintf("FPS: %.2f - X: %.02f - Y: %.02f",
@@ -255,7 +191,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 }
 
 func (g *Game) Layout(_, _ int) (int, int) {
-	return 1024, 1024 //ScreenWidth, ScreenHeight
+	return ScreenWidth, ScreenHeight
 }
 
 func main() {
@@ -264,7 +200,7 @@ func main() {
 	ebiten.SetVsyncEnabled(false) // TODO: true
 
 	if err := ebiten.RunGameWithOptions(NewGame(), &ebiten.RunGameOptions{
-		//GraphicsLibrary: ebiten.GraphicsLibraryOpenGL,
+		GraphicsLibrary: ebiten.GraphicsLibraryOpenGL,
 	}); err != ebiten.Termination {
 		log.Fatalf("error at RunGame: %v", err)
 	}

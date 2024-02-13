@@ -61,6 +61,10 @@ func (r *Renderer) DrawLayers(screen *ebiten.Image, layers []*Layer, opts *DrawL
 	pvinv := mgl64.Mat4(proj).Mul4(mgl64.Mat4(view)).Inv()
 	x, y, z := r.camera.Position()
 	screenSize := screen.Bounds()
+	aa := false
+	if opts != nil {
+		aa = opts.Antialiasing
+	}
 	/*sort.SliceStable(layers, func(i int, j int) bool {
 		return layers[i].Z > layers[j].Z
 	})*/
@@ -113,7 +117,7 @@ func (r *Renderer) DrawLayers(screen *ebiten.Image, layers []*Layer, opts *DrawL
 				l.Height,
 				l.Diffuse,
 			},
-			AntiAlias: opts.Antialiasing,
+			AntiAlias: aa,
 		})
 	}
 }

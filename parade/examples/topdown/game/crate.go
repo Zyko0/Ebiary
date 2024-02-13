@@ -24,8 +24,11 @@ func (c *Crate) DrawDepth(dst *ebiten.Image) {
 	geom := ebiten.GeoM{}
 	geom.Scale(CrateSize, CrateSize)
 	geom.Translate(c.X-CrateSize/2, c.Y-CrateSize/2)
+	cs := ebiten.ColorScale{}
+	cs.Scale(0.5, 0.5, 0.5, 1)
 	dst.DrawImage(ImageWhite, &ebiten.DrawImageOptions{
-		GeoM: geom,
+		GeoM:       geom,
+		ColorScale: cs,
 	})
 }
 
