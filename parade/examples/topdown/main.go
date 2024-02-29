@@ -118,6 +118,7 @@ func (g *Game) Update() error {
 		d.Update()
 	}
 
+	g.renderer.Camera().SetPosition(0, 0, -512) //512, 512, -512)
 	g.renderer.Update()
 
 	return nil

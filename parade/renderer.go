@@ -1,10 +1,13 @@
 package parade
 
 import (
+	"fmt"
+
 	"github.com/Zyko0/Ebiary/parade/internal/camera"
 	"github.com/Zyko0/Ebiary/parade/internal/utils"
 	"github.com/go-gl/mathgl/mgl64"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
 
 type ZDirection int
@@ -107,7 +110,7 @@ func (r *Renderer) DrawLayers(screen *ebiten.Image, layers []*Layer, opts *DrawL
 
 				"CameraPVMatrixInv": pvinv[:],
 				"CameraPosition": []float64{
-					x, y, z,
+					0 * x, 0 * y, 0 * z,
 				},
 				"LightPosition": []float32{
 					0, 0, -2,
@@ -120,4 +123,8 @@ func (r *Renderer) DrawLayers(screen *ebiten.Image, layers []*Layer, opts *DrawL
 			AntiAlias: aa,
 		})
 	}
+
+	ebitenutil.DebugPrintAt(screen,
+		fmt.Sprintf("Angle: %.2f", camera.Angle), 10, 80,
+	)
 }

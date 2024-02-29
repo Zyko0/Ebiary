@@ -84,8 +84,8 @@ func (g *Game) Update() error {
 	}*/
 	//fmt.Println("nearest", nearest)
 	// Camera matrices update
-	camY := LayerHeight/2 - g.player.Y
-	g.renderer.Camera().SetPosition(g.player.X, camY, 0)
+	camY := ScreenHeight - g.player.Y + game.PlayerSize/2 //LayerHeight/2.// + g.player.Y
+	g.renderer.Camera().SetPosition(g.player.X, camY, -500)
 	g.renderer.Update()
 
 	return nil

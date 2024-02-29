@@ -2,19 +2,22 @@
 
 package main
 
-const (
-	MinLayers = 128.0
-	MaxLayers = 256.0
-)
-
 // Texture data fetching
 
 func fetchDepth(uv vec2) vec4 {
+	//p := uv + CameraPosition.xy
+	//origin := imageSrc0Origin()
+	//_ = origin
+	//p = abs(mod(p, LayerSize+origin))
 	return imageSrc0UnsafeAt(uv + CameraPosition.xy)
 }
 
 func fetchColor(uv vec2) vec4 {
-	return imageSrc1UnsafeAt(uv + CameraPosition.xy)
+	p := uv + CameraPosition.xy
+	origin := imageSrc0Origin()
+	_ = origin
+	//p = abs(mod(p, LayerSize+origin))
+	return imageSrc1UnsafeAt(p)
 }
 
 func toUV(p vec3) vec2 {
@@ -27,14 +30,25 @@ func toUV(p vec3) vec2 {
 // "n" normal at "p"
 // "k" controls the sharpness of the blending in the
 // transitions areas.
-func boxmapColor(p, n vec3, k float) vec4 {
+func boxmapColor(p, n vec3, k, df float) vec4 {
 	// TODO: unclear atm
+	pxy := p.xy
+	_ = pxy
 	p.xy += CameraPosition.xy + LayerSize/2
-
+	p.z = mod(abs(p.z), df)
+	//return vec4(0)
 	origin := imageSrc0Origin()
-	x := imageSrc1UnsafeAt(p.zy + vec2(CameraPosition.x, 0) + origin)
+	if p.y < 128 {
+		//return vec4(0,1,0,1)
+	}
+	/*x := imageSrc1UnsafeAt(p.zy + vec2(CameraPosition.x, 0) + origin)
 	y := imageSrc1UnsafeAt(p.xz + vec2(0, CameraPosition.y) + origin)
+	z := imageSrc1UnsafeAt(p.xy + origin)*/
+	sn := sign(n)
+	x := imageSrc1UnsafeAt(vec2((p.x+df*sn.x)-p.z*sn.x, p.y) + vec2(CameraPosition.x, 0) + origin)
+	y := imageSrc1UnsafeAt(vec2(p.x, (p.y+df*sn.y)-p.z*sn.y) + vec2(0, CameraPosition.y) + origin)
 	z := imageSrc1UnsafeAt(p.xy + origin)
+	//return y
 
 	// Blend
 	m := pow(abs(n), vec3(k))
@@ -66,17 +80,23 @@ func sdScene(p, rd vec3, depthFactor float) float {
 		/*if clr.a <= 0.9 {
 			return 1
 		}*/
-		clr := fetchDepth(toUV(p))
-		return (1-clr.x)*depthFactor - p.z
+		data := fetchDepth(toUV(p))
+		return (1-data.r*data.a)*depthFactor - p.z
 	}
 	return 1
 }
 
 func parallax(uv vec2, rd vec3, depthFactor float) (vec2, float, bool) {
 	// number of depth layers
-	numLayers := mix(MaxLayers, MinLayers, max(dot(vec3(0, 0, 1), rd), 0))
-	numLayers = mix(depthFactor/32, depthFactor/2, max(dot(vec3(0, 0, 1), rd), 0))
-	numLayers = depthFactor
+	//rd /= rd.z
+	testrd := max(length(rd.xy), 0.15)
+	//testrd = clamp(0, 1, testrd)
+	numLayers := mix(depthFactor/64, depthFactor, max(dot(vec3(0, 0, 0.25), rd), 0))
+	numLayers = mix(1, depthFactor, testrd)
+	//rd /= rd.z
+	//numLayers = depthFactor/2 // TODO: debug
+	//numLayers = depthFactor
+	//numLayers /= 4
 	//numLayers = 128 // TODO:
 	// calculate the size of each layer
 	layerDepth := 1.0 / numLayers
@@ -84,38 +104,20 @@ func parallax(uv vec2, rd vec3, depthFactor float) (vec2, float, bool) {
 	p := rd.xyz * depthFactor
 	deltap := p / numLayers
 
-	// get initial values
-	/*cuv := uv
-	currentDepth := fetchData(cuv).r
-	currentLayerDepth := 0. //0.2
-	for i := 0; i < 1024; i++ {
-		if currentLayerDepth > 1. {
-			return vec2(0), 0, false
-		}
-		if currentLayerDepth < currentDepth {
-			break
-		}
-		cuv -= deltap.xy
-
-		// original
-		currentDepth = fetchData(cuv).r
-		currentLayerDepth += layerDepth
-	}*/
-	cuv := uv
-	currentDepth := fetchDepth(cuv).r
+	data := fetchDepth(uv)
+	currentDepth := data.r * data.a
 	//return uv, currentDepth, true
 	currentLayerDepth := 1. //0.2
 	for i := 0; i < 1024; i++ {
-		if currentLayerDepth < 0. {
+		/*if currentLayerDepth < 0. {
 			return vec2(0), 0, false
-		}
+		}*/
 		if currentLayerDepth < currentDepth {
 			break
 		}
-		cuv -= deltap.xy
-
-		// original
-		currentDepth = fetchDepth(cuv).r
+		uv -= deltap.xy
+		data = fetchDepth(uv)
+		currentDepth = data.r * data.a
 		currentLayerDepth -= layerDepth
 	}
 
@@ -123,15 +125,22 @@ func parallax(uv vec2, rd vec3, depthFactor float) (vec2, float, bool) {
 	/*prevuv := cuv + deltap.xy
 
 	// get depth after and before collision for linear interpolation
-	afterDepth := currentDepth - currentLayerDepth
-	beforeDepth := fetchDepth(prevuv).r - currentLayerDepth + layerDepth
+	afterDepth := 1 - (currentDepth - layerDepth)
+	beforeDepth := 1 - fetchDepth(prevuv).r + layerDepth + currentDepth
 
 	// interpolation of texture coordinates
 	weight := afterDepth / (afterDepth - beforeDepth)
-	cuv = prevuv*weight + cuv*(1.0-weight)
-	currentDepth = weight*/
+	_ = weight
+	//weight = afterDepth / (afterDepth + beforeDepth)
+	cuv = prevuv*weight + cuv*(1.0-weight)*/
+	//cuv = mix(prevuv, cuv, weight)
+	//currentDepth = 1-weight
+	//cuv += vec2(-250,500)
+	//currentDepth = 0//beforeDepth + currentDepth*weight
 
-	return cuv, currentDepth - currentLayerDepth, true //*depthFactor
+	return uv, currentDepth - currentLayerDepth, currentLayerDepth > 0 //true
+	//currentDepth -= weight*layerDepth
+	//currentLayerDepth -= layerDepth*weight
 }
 
 func calcNormal(p, rd vec3, depthFactor float) vec3 {
@@ -207,6 +216,8 @@ var (
 var (
 	ScreenSize vec2
 	LayerSize  vec2
+	ZDir       float
+	BoxMapping float
 )
 
 var (
@@ -215,70 +226,91 @@ var (
 	LightPosition     vec3
 )
 
+func lookAt(eye, tar vec3, r float) mat3 {
+	cw := normalize(tar - eye)     // camera w
+	cp := vec3(sin(r), cos(r), 0.) // camera up
+	cu := normalize(cross(cw, cp)) // camera u
+	cv := normalize(cross(cu, cw)) // camera v
+	return mat3(cu, cv, cw)
+}
+
 func Fragment(dst vec4, src vec2, color vec4) vec4 {
 	const pi = 3.1415
 
+	// Vertex options
 	startingDepth := color.r
-	depthFactor := color.g //* 10 //* 0.125
+	depthFactor := color.g
+	// Camera setup
 	origin := imageSrc0Origin()
 	//size := imageSrc0Size()
 	halfsize := ScreenSize / 2
 	uv := src.xy - origin - halfsize
 	uv = -uv // TODO: idk why
 
-	ro := vec3(uv.x, uv.y, 0)
+	ro := vec3(uv.x, uv.y, -startingDepth)
 
 	rd := normalize(
 		vec3(uv, max(halfsize.x, halfsize.y)),
 	)
+	/*rd := normalize(
+		vec3(uv/halfsize, 1.),
+	)*/
+	//rd = normalize(vec3(sign(uv), 1))//rd*normalize(vec3(1, 1, 1)))
 
 	/* Camera attempt */
 	//return vec4(1)
-	near4 := CameraPVMatrixInv * normalize(vec4(uv/halfsize, -1, 1))
+	near4 := CameraPVMatrixInv * normalize(vec4(uv/halfsize, 0, 1))
 	far4 := CameraPVMatrixInv * normalize(vec4(uv/halfsize, 1, 1))
 	far3 := far4.xyz / far4.w
-	_ = near4
+	_, _ = near4, far3
 	// Ray calculation
-	//ro = near4.xyz / near4.w
 	rd = normalize(far3)
 	//return vec4(1)
+	//rd = normalize(vec3(1,1,0.7))
+	rd /= rd.z
+
 	/* End camera attempt */
 
-	ibb := vec3(LayerSize/2, depthFactor)
+	ibb := vec3(LayerSize/2, 0.) //0.01)
 	// Discard if outside the projected box
-	dib := iBox(ro-vec3(0, 0, startingDepth+depthFactor), rd, ibb)
+	dib := iBox(ro-vec3(0, 0, ZDir*depthFactor), rd, ibb)
 	if dib.x == -1 && dib.y == -1 {
-		return vec4(0, 1, 0, 1)
-		//discard()
-		//return
-		//return vec4(1, 0, 0, 1) // TODO: discard
+		//return vec4(0, 1, 0, 1)
+		discard()
+		return
 	}
 	ro = ro + rd*dib.x
 	//return vec4(1)
 
 	tuv, d, ok := parallax(toUV(-ro), rd, depthFactor)
+	_ = ok
 	//if !ok || tuv.x > origin.x+LayerSize.x || tuv.x < origin.x || tuv.y > origin.y+LayerSize.y || tuv.y+CameraPosition.y < origin.y {
 	if !ok || tuv.x+CameraPosition.x < origin.x ||
 		tuv.y+CameraPosition.y < origin.y ||
 		tuv.x+CameraPosition.x > origin.x+LayerSize.x ||
 		tuv.y+CameraPosition.y > origin.y+LayerSize.y {
-		return vec4(0, 0, 1, 1)
+		//return vec4(0, 0, 1, 1)
 		discard()
 		return
 	}
 
-	p := vec3(tuv-imageSrc0Origin()-halfsize, d*depthFactor)
+	p := vec3(tuv-imageSrc0Origin()-halfsize, -startingDepth+d*depthFactor)
 	//return vec4(clr.rgb, 1.) * clr.a
 	//p = vec3(uv.x, uv.y, 0) + rd*(d*depthFactor)
 	normal := calcNormal(p, rd, depthFactor)
 
-	clr := fetchColor(tuv)
-	//clr := boxmapColor(p, normal, 1.)
+	var clr vec4
+	if BoxMapping < 0.5 {
+		clr = fetchColor(tuv)
+	} else {
+		clr = boxmapColor(p, normal, 1, 128/2) //TODO: need max depth
+	}
+	//clr = fetchColor(tuv)
 
-	return vec4((normal+1)/2, 1) // TODO: normal debug
+	//return vec4((normal+1)/2, 1) // TODO: normal debug
 	//clr.rgb = normalize(vec3(tuv-halfsize-imageSrc0Origin(), p.z)) // TODO: debug colors
 	//return vec4(clr.rgb, 1)
-	lpos := vec3(0, -250, -1200)
+	lpos := vec3(0, 0, -250)//-startingDepth-200)
 	ldir := normalize(p - lpos)
 	clr.rgb = phong(ldir, normal, clr.rgb)
 

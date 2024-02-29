@@ -86,16 +86,15 @@ func sdScene(p, rd vec3, depthFactor float) float {
 	return 1
 }
 
-func parallax(uv vec2, rd vec3, depthFactor float) (vec2, float, bool) {
+func parallax(uv vec2, rd vec3, depthFactor, zd float) (vec2, float, bool) {
 	// number of depth layers
 	//rd /= rd.z
 	testrd := max(length(rd.xy), 0.15)
 	//testrd = clamp(0, 1, testrd)
 	numLayers := mix(depthFactor/64, depthFactor, max(dot(vec3(0, 0, 0.25), rd), 0))
 	numLayers = mix(1, depthFactor, testrd)
-	//rd /= rd.z
 	//numLayers = depthFactor/2 // TODO: debug
-	//numLayers = depthFactor
+	numLayers = depthFactor // TODO:
 	//numLayers /= 4
 	//numLayers = 128 // TODO:
 	// calculate the size of each layer
@@ -106,16 +105,14 @@ func parallax(uv vec2, rd vec3, depthFactor float) (vec2, float, bool) {
 
 	data := fetchDepth(uv)
 	currentDepth := data.r * data.a
-	//return uv, currentDepth, true
+	//return uv, currentDepth, false
+	//return vec2(0), 0, false
 	currentLayerDepth := 1. //0.2
 	for i := 0; i < 1024; i++ {
-		/*if currentLayerDepth < 0. {
-			return vec2(0), 0, false
-		}*/
 		if currentLayerDepth < currentDepth {
 			break
 		}
-		uv -= deltap.xy
+		uv += deltap.xy * zd
 		data = fetchDepth(uv)
 		currentDepth = data.r * data.a
 		currentLayerDepth -= layerDepth
@@ -167,7 +164,7 @@ func calcNormal(p, rd vec3, depthFactor float) vec3 {
 
 // https://iquilezles.org/articles/boxfunctions
 // License MIT: https://www.shadertoy.com/view/ld23DV
-func iBox(ro, rd, bb vec3) vec2 { //vec4 {
+func iBox(ro, rd, bb vec3) (vec2, vec3) { //vec4 {
 	m := 1. / rd
 	n := m * ro
 	k := abs(m) * bb
@@ -178,14 +175,14 @@ func iBox(ro, rd, bb vec3) vec2 { //vec4 {
 	tF := min(min(t2.x, t2.y), t2.z)
 
 	if tN > tF || tF < 0 {
-		return vec2(-1) // return vec4(-1)
+		return vec2(-1), vec3(0) // return vec4(-1)
 	}
 
-	return vec2(tN, tF)
-	/*res := vec4(tN, step(tN, t1))
+	//return vec2(tN, tF)
+	res := vec4(tN, step(tN, t1))
 	res.yzw = (vec4(-sign(rd)*res.yzw, 0)).xyz
 
-	return res*/
+	return vec2(tN, tF), res.yzw
 }
 
 /*func softShadow(ro, rd vec3, mint, tmax float) float {
@@ -245,44 +242,63 @@ func Fragment(dst vec4, src vec2, color vec4) vec4 {
 	//size := imageSrc0Size()
 	halfsize := ScreenSize / 2
 	uv := src.xy - origin - halfsize
-	uv = -uv // TODO: idk why
 
-	ro := vec3(uv.x, uv.y, -startingDepth)
-
-	rd := normalize(
-		vec3(uv, max(halfsize.x, halfsize.y)),
-	)
-	/*rd := normalize(
-		vec3(uv/halfsize, 1.),
-	)*/
-	//rd = normalize(vec3(sign(uv), 1))//rd*normalize(vec3(1, 1, 1)))
+	//ro := vec3(uv.x, uv.y, -startingDepth)
 
 	/* Camera attempt */
 	//return vec4(1)
-	near4 := CameraPVMatrixInv * normalize(vec4(uv/halfsize, 0, 1))
-	far4 := CameraPVMatrixInv * normalize(vec4(uv/halfsize, 1, 1))
+	camuv := uv / halfsize
+
+	//	TODO: to have weird depth on sides
+	/*near4 := CameraPVMatrixInv * normalize(vec4(camuv, -1*0, 1))
+	far4 := CameraPVMatrixInv * normalize(vec4(camuv*0, 1, 1))*/
+
+	near4 := CameraPVMatrixInv * normalize(vec4(camuv, -1, 1))
+	far4 := CameraPVMatrixInv * normalize(vec4(camuv, 1, 1))
 	far3 := far4.xyz / far4.w
 	_, _ = near4, far3
-	// Ray calculation
-	rd = normalize(far3)
+	// Note: Ray calculation from camera (proper)
+	//ro := near4.xyz / near4.w
+	//rd := normalize(far3 - ro)
+
+	// TODO: below is spread depth weird
+	ro := near4.xyz / near4.w
+	//ro := vec3(uv.x, uv.y, -startingDepth)
+	//ro += vec3(uv, 0)
+	rd := normalize(far3 - ro)
+
 	//return vec4(1)
-	//rd = normalize(vec3(1,1,0.7))
-	rd /= rd.z
 
 	/* End camera attempt */
+	ibb := vec3(LayerSize, depthFactor) //0.01) // TODO: was / 2 => ??
 
-	ibb := vec3(LayerSize/2, 0.) //0.01)
+	ibb = vec3(150, 150, 150)
+	_ = ibb
 	// Discard if outside the projected box
-	dib := iBox(ro-vec3(0, 0, ZDir*depthFactor), rd, ibb)
+	//dib := iBox(ro-vec3(0, 0, 128-depthFactor/4), rd, ibb)
+	_ = startingDepth
+	dib, boxn := iBox(ro-vec3(0, 0, startingDepth), rd, ibb)
 	if dib.x == -1 && dib.y == -1 {
-		//return vec4(0, 1, 0, 1)
-		discard()
-		return
+		return vec4(0, 1, 0, 1)
+		//discard()
+		//return
 	}
-	ro = ro + rd*dib.x
+	//return vec4((boxn+1)/2, 1)
+	ddd := dib.x
+	rdz := rd.z
+
+	_, _, _ = ddd, ro, rdz
+	//return vec4(1)
+	ro += rd * ddd
+	rd /= rd.z //abs(rd.z)
+
+	_ = boxn
 	//return vec4(1)
 
-	tuv, d, ok := parallax(toUV(-ro), rd, depthFactor)
+	vvuv := toUV(ro)
+	//vvuv = vec2(ro.xy + LayerSize/2 - imageSrc0Origin())
+
+	tuv, d, ok := parallax(vvuv, rd, depthFactor, ZDir)
 	_ = ok
 	//if !ok || tuv.x > origin.x+LayerSize.x || tuv.x < origin.x || tuv.y > origin.y+LayerSize.y || tuv.y+CameraPosition.y < origin.y {
 	if !ok || tuv.x+CameraPosition.x < origin.x ||
@@ -293,8 +309,9 @@ func Fragment(dst vec4, src vec2, color vec4) vec4 {
 		discard()
 		return
 	}
-
-	p := vec3(tuv-imageSrc0Origin()-halfsize, -startingDepth+d*depthFactor)
+	_ = d
+	//return vec4(1)
+	p := vec3(tuv-imageSrc0Origin()-halfsize, d*depthFactor)
 	//return vec4(clr.rgb, 1.) * clr.a
 	//p = vec3(uv.x, uv.y, 0) + rd*(d*depthFactor)
 	normal := calcNormal(p, rd, depthFactor)
@@ -305,12 +322,12 @@ func Fragment(dst vec4, src vec2, color vec4) vec4 {
 	} else {
 		clr = boxmapColor(p, normal, 1, 128/2) //TODO: need max depth
 	}
-	//clr = fetchColor(tuv)
+	//clr = fetchColor(tuv) // TODO:
 
 	//return vec4((normal+1)/2, 1) // TODO: normal debug
 	//clr.rgb = normalize(vec3(tuv-halfsize-imageSrc0Origin(), p.z)) // TODO: debug colors
-	//return vec4(clr.rgb, 1)
-	lpos := vec3(0, 0, -250)//-startingDepth-200)
+	return vec4(clr.rgb, 1)
+	lpos := vec3(0, 0, -250) //-startingDepth-200)
 	ldir := normalize(p - lpos)
 	clr.rgb = phong(ldir, normal, clr.rgb)
 
