@@ -1,10 +1,7 @@
 package asset
 
 import (
-	"bytes"
 	"fmt"
-	"image/jpeg"
-	"image/png"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -13,7 +10,6 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/hajimehoshi/ebiten/v2"
-	"golang.org/x/image/bmp"
 )
 
 var (
@@ -22,47 +18,6 @@ var (
 	trackedFiles   *sync.Map
 	onceWatch      sync.Once
 )
-
-// Loading functions
-
-func newShader[T any](data []byte) (T, error) {
-	s, err := ebiten.NewShader(data)
-
-	return any(s).(T), err
-}
-
-func newImagePNG[T any](data []byte) (T, error) {
-	var t T
-	i, err := png.Decode(bytes.NewReader(data))
-	if err != nil {
-		return t, err
-	}
-	img := ebiten.NewImageFromImage(i)
-
-	return any(img).(T), nil
-}
-
-func newImageJPG[T any](data []byte) (T, error) {
-	var t T
-	i, err := jpeg.Decode(bytes.NewReader(data))
-	if err != nil {
-		return t, err
-	}
-	img := ebiten.NewImageFromImage(i)
-
-	return any(img).(T), nil
-}
-
-func newImageBMP[T any](data []byte) (T, error) {
-	var t T
-	i, err := bmp.Decode(bytes.NewReader(data))
-	if err != nil {
-		return t, err
-	}
-	img := ebiten.NewImageFromImage(i)
-
-	return any(img).(T), nil
-}
 
 // Assets watcher
 
@@ -101,6 +56,8 @@ func watcherInit() {
 	}()
 }
 
+// LiveAsset represents a self-reloading asset object, its content is
+// accessible by calling the Value() method.
 type LiveAsset[T any] struct {
 	mutex sync.Mutex
 
@@ -110,14 +67,16 @@ type LiveAsset[T any] struct {
 	fnLoad func([]byte) (T, error)
 }
 
-func NewLiveAsset[T any](path string) (*LiveAsset[T], error) {
+func registerAsset[T any](path string, fn func([]byte) (T, error)) (*LiveAsset[T], error) {
 	onceWatch.Do(watcherInit)
 	if watcherInitErr != nil {
 		return nil, watcherInitErr
 	}
 
 	// Register file watching
-	a := &LiveAsset[T]{}
+	a := &LiveAsset[T]{
+		fnLoad: fn,
+	}
 	path = filepath.Clean(path)
 	files, _ := trackedFiles.LoadOrStore(path, &sync.Map{})
 	files.(*sync.Map).Store(a, struct{}{})
@@ -126,32 +85,8 @@ func NewLiveAsset[T any](path string) (*LiveAsset[T], error) {
 	if err != nil {
 		return nil, err
 	}
-	// Define the loading function
-	var v T
-	switch any(v).(type) {
-	case *ebiten.Shader:
-		a.fnLoad = newShader[T]
-	case *ebiten.Image:
-		ext := filepath.Ext(path)
-		switch ext {
-		case ".png":
-			a.fnLoad = newImagePNG[T]
-		case ".jpg", ".jpeg":
-			a.fnLoad = newImageJPG[T]
-		case ".bmp":
-			a.fnLoad = newImageBMP[T]
-		default:
-			return nil, fmt.Errorf("unknown image extension: '%s'", ext)
-		}
-	case []byte:
-		a.fnLoad = func(b []byte) (T, error) {
-			return any(b).(T), nil
-		}
-	default:
-		return nil, fmt.Errorf("unknown asset type: '%s'", reflect.TypeOf(v).String())
-	}
 	// Perform the initial asset loading
-	v, err = a.fnLoad(f)
+	v, err := a.fnLoad(f)
 	if err != nil {
 		return nil, err
 	}
@@ -169,6 +104,46 @@ func NewLiveAsset[T any](path string) (*LiveAsset[T], error) {
 	return a, nil
 }
 
+// NewLiveAsset creates an hot-reloadable asset for ebitengine common types.
+// The default supported types are *ebiten.Shader and *ebiten.Image (png,bmp,jpg).
+func NewLiveAsset[T any](path string) (*LiveAsset[T], error) {
+	var fn func([]byte) (T, error)
+	var v T
+	switch any(v).(type) {
+	case *ebiten.Shader:
+		fn = newShader[T]
+	case *ebiten.Image:
+		ext := filepath.Ext(path)
+		switch ext {
+		case ".png":
+			fn = newImagePNG[T]
+		case ".jpg", ".jpeg":
+			fn = newImageJPG[T]
+		case ".gif":
+			fn = newImageGIF[T]
+		case ".bmp":
+			fn = newImageBMP[T]
+		default:
+			return nil, fmt.Errorf("asset: unknown image extension: '%s'", ext)
+		}
+	case []byte:
+		fn = func(b []byte) (T, error) {
+			return any(b).(T), nil
+		}
+	default:
+		return nil, fmt.Errorf("asset: unknown asset type: '%s'", reflect.TypeOf(v).String())
+	}
+
+	return registerAsset(path, fn)
+}
+
+// NewLiveAssetFunc is a convenience function to create a new LiveAsset
+// with the given path and a custom load function.
+func NewLiveAssetFunc[T any](path string, fn func([]byte) (T, error)) (*LiveAsset[T], error) {
+	return registerAsset(path, fn)
+}
+
+// refresh reloads the object's content and is called automatically on file update.
 func (a *LiveAsset[T]) refresh(data []byte, err error) error {
 	if a == nil {
 		return nil
