@@ -6,6 +6,7 @@ import (
 	"image/gif"
 	"image/jpeg"
 	"image/png"
+	"reflect"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"golang.org/x/image/bmp"
@@ -73,7 +74,13 @@ func NewImage(data []byte) (any, error) {
 	return ebiten.NewImageFromImage(img), nil
 }
 
-func NewImageWithOptions(opts *ebiten.NewImageFromImageOptions) Loader {
+func NewShader(data []byte) (any, error) {
+	return ebiten.NewShader(data)
+}
+
+// Meta loaders
+
+func NewImageWithOptionsLoader(opts *ebiten.NewImageFromImageOptions) Loader {
 	return func(data []byte) (any, error) {
 		img, _, err := image.Decode(bytes.NewBuffer(data))
 		if err != nil {
@@ -83,6 +90,17 @@ func NewImageWithOptions(opts *ebiten.NewImageFromImageOptions) Loader {
 	}
 }
 
-func NewShader(data []byte) (any, error) {
-	return ebiten.NewShader(data)
+func NewLoadableLoader[T any]() Loader {
+	return func(b []byte) (any, error) {
+		var obj T
+		rt := reflect.TypeOf(obj)
+		if rt.Kind() == reflect.Ptr {
+			obj = reflect.New(rt.Elem()).Interface().(T)
+		}
+		err := any(obj).(Loadable).Deserialize(b)
+		if err != nil {
+			return obj, err
+		}
+		return obj, nil
+	}
 }
