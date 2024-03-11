@@ -272,7 +272,7 @@ func Fragment(dst vec4, src vec2, color vec4) vec4 {
 	/* End camera attempt */
 	ibb := vec3(LayerSize, depthFactor) //0.01) // TODO: was / 2 => ??
 
-	ibb = vec3(150, 150, 150)
+	// ibb = vec3(150, 150, 150)
 	_ = ibb
 	// Discard if outside the projected box
 	//dib := iBox(ro-vec3(0, 0, 128-depthFactor/4), rd, ibb)
