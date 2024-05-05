@@ -104,7 +104,6 @@ func NewFS(fsys fs.FS, opts *NewFSOptions) *FS {
 			panic(err)
 		}
 	}
-	fmt.Println("loaders:", loaders)
 
 	f := &FS{
 		FS: fsys,
@@ -131,7 +130,6 @@ func (fsys *FS) Get(name string) (any, error) {
 	// Read file contents from FS
 	data, err := fs.ReadFile(fsys, name)
 	if err != nil {
-		fmt.Println("there:", name)
 		return nil, err
 	}
 	// Initialize the object
