@@ -78,12 +78,14 @@ func NewTextInput() *TextInput {
 					cs = cs.Sub(textPadding)
 					itb.updateCaretIndex(cs)
 				}
-				// Text content
-				runes := ebiten.AppendInputChars(nil)
-				if len(runes) > 0 {
-					txt = txt[:itb.charIndex] + string(runes) + txt[itb.charIndex:]
-					for _, r := range runes {
-						itb.charIndex += utf8.RuneLen(r)
+				// Text content (if ctrl not pressed)
+				if is.KeyPressDuration(ebiten.KeyControl) == 0 {
+					runes := ebiten.AppendInputChars(nil)
+					if len(runes) > 0 {
+						txt = txt[:itb.charIndex] + string(runes) + txt[itb.charIndex:]
+						for _, r := range runes {
+							itb.charIndex += utf8.RuneLen(r)
+						}
 					}
 				}
 				// Key presses
