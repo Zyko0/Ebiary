@@ -36,12 +36,12 @@ jobs:
           echo "Setup Kagery page"
           cd ./kagery
           cp $(go env GOROOT)/misc/wasm/wasm_exec.js .
-          cp ../.html/index.html .
+          cp ../.github/workflows/index.html .
           GOOS=js GOARCH=wasm go build -o out.wasm .
           echo "Setup UI examples"
           cd ../ui/examples/calc
           cp $(go env GOROOT)/misc/wasm/wasm_exec.js .
-          cp ../../../.html/index.html .
+          cp ../../../.github/workflows/index.html .
           GOOS=js GOARCH=wasm go build -o out.wasm .
       - name: Setup Pages
         uses: actions/configure-pages@v5
