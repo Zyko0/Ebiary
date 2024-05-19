@@ -1,0 +1,191 @@
+//kage:unit pixels
+
+package main
+
+/* Gradient noise from Jorge Jimenez's presentation: */
+/* http://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare */
+func gradientNoise(uv vec2) float {
+	return fract(52.9829189 * fract(dot(uv, vec2(0.06711056, 0.00583715))))
+}
+
+func ndot(a, b vec2) float {
+	return a.x*b.x - a.y*b.y
+}
+
+func round(v float) float {
+	return floor(v + 0.5)
+}
+
+func unpackColor(v float) vec3 {
+	iv := int(v)
+	return vec3(
+		float((iv>>16)&255),
+		float((iv>>8)&255),
+		float(iv&255),
+	) / 255
+}
+
+func sdBox(p, b vec2) float {
+	d := abs(p) - b
+	return length(max(d, 0)) + min(max(d.x, d.y), 0)
+}
+
+func sdEllipse(p, ab vec2) float {
+	p = abs(p)
+	q := ab * (p - ab)
+	w := 0.
+	if q.x < q.y {
+		w = 1.570796327
+	}
+	for i := 0; i < 5; i++ {
+		cs := vec2(cos(w), sin(w))
+		u := ab * vec2(cs.x, cs.y)
+		v := ab * vec2(-cs.y, cs.x)
+		w = w + dot(p-u, v)/(dot(p-u, u)+dot(v, v))
+	}
+
+	d := length(p - ab*vec2(cos(w), sin(w)))
+	if dot(p/ab, p/ab) > 1. {
+		return d
+	}
+	return -d
+}
+
+func sdRhombus(p, b vec2) float {
+	p = abs(p)
+	h := clamp(ndot(b-2.*p, b)/dot(b, b), -1., 1.)
+	d := length(p - 0.5*b*vec2(1.-h, 1.+h))
+	return d * sign(p.x*b.y+p.y*b.x-b.x*b.y)
+}
+
+func sdPolygon(p, b vec2, n float) float {
+	r := b.x
+	// these 4 lines can be precomputed for a given shape
+	an := 3.141593 / n
+	acs := vec2(cos(an), sin(an))
+
+	// reduce to first sector
+	bn := mod(atan2(p.x, p.y), 2.*an) - an
+	p = length(p) * vec2(cos(bn), abs(sin(bn)))
+
+	// line sdf
+	p -= r * acs
+	p.y += clamp(-p.y, 0., r*acs.y)
+	return length(p) * sign(p.x)
+}
+
+func sdHexagon(p, b vec2) float {
+	//return sdPolygon(p, b, 6)
+	k := vec3(-0.866025404, 0.5, 0.577350269)
+	p = abs(p)
+	p -= 2.0 * min(dot(k.xy, p), 0.0) * k.xy
+	r := b.x
+	p -= vec2(clamp(p.x, -k.z*r, k.z*r), r)
+	return length(p) * sign(p.y)
+}
+
+func sdOctogon(p, b vec2) float {
+	// pi/8: cos, sin, tan.
+	k := vec3(
+		-0.9238795325, // sqrt(2+sqrt(2))/2
+		0.3826834323,  // sqrt(2-sqrt(2))/2
+		0.4142135623,  // sqrt(2)-1
+	)
+	// reflections
+	diff := max(b.x, b.y) - min(b.x, b.y)
+	axis := vec2(step(b.y, b.x), step(b.x, b.y))
+
+	if axis.x > 0. {
+		p.x = clamp(p.x-0.01*round(p.x/0.01), p.x-diff, p.x+diff)
+	} else if axis.y > 0. {
+		p.y = clamp(p.y-0.01*round(p.y/0.01), p.y-diff, p.y+diff)
+	}
+	p = abs(p)
+	p -= 2. * min(dot(vec2(k.x, k.y), p), 0.) * vec2(k.x, k.y)
+	p -= 2. * min(dot(vec2(-k.x, k.y), p), 0.) * vec2(-k.x, k.y)
+	r := min(b.x, b.y)
+	// Polygon side.
+	p -= vec2(clamp(p.x, -k.z*r, k.z*r), r)
+	return length(p) * sign(p.y)
+}
+
+const (
+	ShapeBox     = 0.5
+	ShapeEllipse = 1.5
+	ShapeRhombus = 2.5
+	ShapeOctogon = 3.5
+)
+
+const (
+	ColorFillingVertical = 0.5
+	ColorFillingDistance = 1.5
+	ColorFillingNone     = 2.5
+)
+
+var GammaExp float
+var Data [128]vec4
+var Extra [64]vec2
+
+func Fragment(dst vec4, src vec2, color vec4) vec4 {
+	uv := src
+	index := int(color.r)
+	item0 := Data[index*2]
+	item1 := Data[index*2+1]
+	// Properties
+	shape := item0.x
+	r := item0.y
+	bw := item0.z
+	doff := item0.w
+
+	filling := item1.x // TODO:
+	w := item1.y
+	h := item1.z
+	alpha := item1.w
+
+	aaf := Extra[index].x
+
+	var d float
+	if shape < ShapeBox {
+		d = sdBox(uv, vec2(w, h)-r) - r
+	} else if shape < ShapeEllipse {
+		d = sdEllipse(uv, vec2(w, h)-r) - r
+	} else if shape < ShapeRhombus {
+		d = sdRhombus(uv, vec2(w, h)-r) - r
+	} else if shape < ShapeOctogon {
+		d = sdOctogon(uv, vec2(w, h)-r) - r
+	}
+	if d > 0. {
+		discard()
+		return
+	}
+
+	d = abs(d / 2)
+	// Border handling
+	aa := smoothstep(0, aaf, d)
+	bv := smoothstep(0, aaf, d-bw)
+	bc := unpackColor(color.a) * (1 - bv) * sign(bw)
+	// Color interior filling
+	if filling < ColorFillingVertical {
+		d = (uv.y + h) / (h * 2)
+	} else if filling < ColorFillingDistance {
+		// noop
+	} else if filling < ColorFillingNone {
+		return vec4(bc, 1) * abs(sign(bw)) * (1 - bv) * aa * alpha
+	}
+	// Mixing primary and secondary colors
+	d = clamp(d+doff, 0, 1)
+	clr := mix(
+		unpackColor(color.b),
+		unpackColor(color.g), d,
+	)
+	// Gamma correction, none if color are the same
+	equal := abs(sign(color.g - color.b))
+	ge := GammaExp*equal + (1 - equal)
+	clr = pow(clr, vec3(ge))
+	// Blend shape color and border color
+	clr = clr*(bv*sign(bw)+1*(1-sign(bw))) + bc
+	// Debanding one-liner
+	clr += (1./255.)*gradientNoise(dst.xy) - 0.5/255.
+
+	return vec4(clr, 1) * aa * alpha
+}
