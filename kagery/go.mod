@@ -3,7 +3,7 @@ module github.com/Zyko0/Ebiary/kagery
 go 1.21.1
 
 require (
-	github.com/Zyko0/Ebiary/ui v0.0.0-20240519165933-45490a92fa58
+	github.com/Zyko0/Ebiary/ui v0.0.0-20240519192033-29e939ca83fa
 	github.com/alecthomas/chroma/v2 v2.13.0
 	github.com/hajimehoshi/ebiten/v2 v2.8.0-alpha.1.0.20240512060738-5bb060b1e9a9
 	golang.design/x/clipboard v0.7.0

@@ -7,6 +7,8 @@ github.com/Zyko0/Ebiary/ui v0.0.0-20240519183717-bf9ad9e3599a h1:XGTTGtmeY6aRKXV
 github.com/Zyko0/Ebiary/ui v0.0.0-20240519183717-bf9ad9e3599a/go.mod h1:euYEuTMpnDOEAwu14DZPF+BHVDOBwOOzANm5eR90AMo=
 github.com/Zyko0/Ebiary/ui v0.0.0-20240519184415-3e7842098445 h1:yxIOgIIU48kfVN+joz6a2FItattxSNBV0SEl+spKEZM=
 github.com/Zyko0/Ebiary/ui v0.0.0-20240519184415-3e7842098445/go.mod h1:euYEuTMpnDOEAwu14DZPF+BHVDOBwOOzANm5eR90AMo=
+github.com/Zyko0/Ebiary/ui v0.0.0-20240519192033-29e939ca83fa h1:fc8jjcZBG7IjVXpYt8BwYW9b96yZjM+/2Hy8n7PtJVg=
+github.com/Zyko0/Ebiary/ui v0.0.0-20240519192033-29e939ca83fa/go.mod h1:euYEuTMpnDOEAwu14DZPF+BHVDOBwOOzANm5eR90AMo=
 github.com/alecthomas/assert/v2 v2.6.0 h1:o3WJwILtexrEUk3cUVal3oiQY2tfgr/FHWiz/v2n4FU=
 github.com/alecthomas/assert/v2 v2.6.0/go.mod h1:Bze95FyfUr7x34QZrjL+XP+0qgp/zg8yS+TtBj1WA3k=
 github.com/alecthomas/chroma/v2 v2.13.0 h1:VP72+99Fb2zEcYM0MeaWJmV+xQvz5v5cxRHd+ooU1lI=
