@@ -1,6 +1,6 @@
 # Kagery
 
-A Kage shader file editor made with Ebitengine.
+A Kage shader file editor made with Ebitengine: https://zyko0.github.io/Ebiary/kagery/.
 
 ![kagery](https://github.com/Zyko0/Ebiary/assets/13394516/f3717096-9c7d-4051-ae63-4fa0ae766511)
 
