@@ -2,6 +2,8 @@
 
 A Kage shader file editor made with Ebitengine.
 
+![kagery](https://github.com/Zyko0/Ebiary/assets/13394516/f3717096-9c7d-4051-ae63-4fa0ae766511)
+
 ## Features
 
 - Reset the `Time` uniform by clicking on the time button.
