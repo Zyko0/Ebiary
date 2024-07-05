@@ -22,22 +22,26 @@ type App struct {
 func New() *App {
 	return &App{
 		atlas: atlas.New(1024, 1024, &atlas.NewAtlasOptions{
-			MinSize: image.Pt(8, 8),
+			MinSize: image.Pt(16, 16),
 		}),
 	}
 }
 
 func (a *App) Update() error {
 	if ebiten.IsKeyPressed(ebiten.KeySpace) {
-		w, h := 8+rand.Intn(16), 8+rand.Intn(16)
-		img := a.atlas.NewImage(w, h)
-		if img != nil {
-			img.Image().Fill(color.RGBA{
-				R: uint8(rand.Intn(255)),
-				G: uint8(rand.Intn(255)),
-				B: uint8(rand.Intn(255)),
-				A: 255,
-			})
+		//if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
+		for i := 0; i < 8; i++ {
+			w, h := 16+rand.Intn(32), 16+rand.Intn(32)
+			//w, h = 32, 32
+			img := a.atlas.NewImage(w, h)
+			if img != nil {
+				img.Image().Fill(color.RGBA{
+					R: uint8(rand.Intn(255)),
+					G: uint8(rand.Intn(255)),
+					B: uint8(rand.Intn(255)),
+					A: 255,
+				})
+			}
 		}
 	}
 	return nil

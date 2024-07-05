@@ -1,8 +1,8 @@
 package packing
 
 import (
+	"fmt"
 	"image"
-	"slices"
 )
 
 type Set struct {
@@ -10,6 +10,7 @@ type Set struct {
 	height int
 	rects  []*image.Rectangle
 	frees  []image.Rectangle
+	tmps   []image.Rectangle
 
 	minSize image.Point
 }
@@ -82,89 +83,63 @@ func abs(n int) int {
 }
 
 func (s *Set) Insert(rect *image.Rectangle) bool {
-	parents := make([]image.Rectangle, len(s.frees))
-	copy(parents, s.frees)
-	frees := []image.Rectangle{}
-	currents := make([]image.Rectangle, len(s.rects))
-	for i := range s.rects {
-		currents[i] = *s.rects[i]
-	}
-	var done bool
-	var newParents []image.Rectangle
-	for !done {
-		newParents = newParents[:0]
-		done = true
-		for _, pr := range parents {
-			var contains bool
-			//n := 0
-			for i, r := range currents {
-				if ix := r.Intersect(pr); !ix.Empty() { //r.In(pr) {
-					contains = true
-					done = false
-					newParents = appendFreeRects(newParents, pr, ix)
-					if ix == r {
-						//currents = slices.Delete(currents, i, i+1)
-					}
-					//currents = slices.Delete(currents, i, i+1)
-					//currents[i] =
-					break
-				}
-				_ = i
-				//currents[n] = currents[i]
-				//n++
-			}
-			//currents = currents[:n]
-			if pr.Dx() < s.minSize.X || pr.Dy() < s.minSize.Y {
-				continue
-			}
-			if !contains && slices.Index(frees, pr) < 0 {
-				frees = append(frees, pr)
-			}
-		}
-		parents = append(parents[:0], newParents...)
-	}
-	// Filter too small rectangles, as well as duplicates
+	s.tmps = append(s.tmps[:0], s.frees...)
+	// Filter too small rectangles
 	n := 0
-	//println("len frees before:", len(frees))
-	s.frees = append(s.frees[:0], frees...)
-	for i := 0; i < len(frees); i++ {
-		if rect.Dx() > frees[i].Dx() || rect.Dy() > frees[i].Dy() {
+	for i := 0; i < len(s.tmps); i++ {
+		if rect.Dx() > s.tmps[i].Dx() || rect.Dy() > s.tmps[i].Dy() {
 			continue
 		}
-		frees[n] = frees[i]
+		s.tmps[n] = s.tmps[i]
 		n++
 	}
-	frees = frees[:n]
+	s.tmps = s.tmps[:n]
 	// TODO: find the most optimal in free ones
-	_ = frees
-	if len(frees) == 0 {
+	if len(s.tmps) == 0 {
 		return false
 	}
 	// Find best rect
-	best := frees[0]
-	/*bestDiff := abs(rect.Dx()-best.Dx()) + abs(rect.Dy()-best.Dy())
-	for i := 1; i < len(frees); i++ {
-		cr := frees[i]
-		diff := abs(rect.Dx()-cr.Dx()) + abs(rect.Dy()-cr.Dy())
-		if diff < bestDiff {
-			best = cr
-			bestDiff = diff
+	best := s.tmps[0]
+	bs := best.Min.X + best.Min.Y
+	for i := range s.tmps {
+		if d := s.tmps[i].Min.X + s.tmps[i].Min.Y; d < bs {
+			best = s.tmps[i]
+			bs = d
 		}
-	}*/
-	//println("number of free rects:", len(frees))
-	//fmt.Println("frees:", frees)
-	slot := best //frees[0] //frees[rand.Intn(len(frees))]
+	}
+
+	slot := best
 	*rect = rect.Add(slot.Min)
 	s.rects = append(s.rects, rect)
-	//println("len s.rects:", len(s.rects))
-	// TODO: remove below, should be safe now
-	/*for i := range s.rects {
-		for j := range s.rects {
-			if i != j && s.rects[i].Eq(*s.rects[j]) {
-				panic("wtf")
+
+	s.tmps = s.tmps[:0]
+	for i := range s.frees {
+		if ix := rect.Intersect(s.frees[i]); !ix.Empty() {
+			s.tmps = appendFreeRects(s.tmps, s.frees[i], ix)
+		} else {
+			s.tmps = append(s.tmps, s.frees[i])
+		}
+	}
+
+	s.frees = s.frees[:0]
+	for i := range s.tmps {
+		if s.tmps[i].Dx() < s.minSize.X || s.tmps[i].Dy() < s.minSize.Y {
+			continue
+		}
+		var contained bool
+		for _, parent := range s.frees {
+			if s.tmps[i] == parent || s.tmps[i].In(parent) {
+				contained = true
+				break
 			}
 		}
-	}*/
+		if contained {
+			continue
+		}
+		s.frees = append(s.frees, s.tmps[i])
+	}
+
+	fmt.Println("len:", len(s.rects))
 
 	return true
 }
