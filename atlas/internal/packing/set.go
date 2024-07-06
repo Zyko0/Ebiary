@@ -120,6 +120,8 @@ func (s *Set) Insert(rect *image.Rectangle) bool {
 			continue
 		}
 		var contained bool
+		// Filter out any duplicate or any empty region that is already
+		// contained by another one
 		for _, parent := range s.empties {
 			if s.tmps[i] == parent || s.tmps[i].In(parent) {
 				contained = true
