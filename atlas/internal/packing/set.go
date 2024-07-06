@@ -6,11 +6,11 @@ import (
 )
 
 type Set struct {
-	width  int
-	height int
-	rects  []*image.Rectangle
-	frees  []image.Rectangle
-	tmps   []image.Rectangle
+	width   int
+	height  int
+	rects   []*image.Rectangle
+	empties []image.Rectangle
+	tmps    []image.Rectangle
 
 	minSize image.Point
 }
@@ -23,7 +23,7 @@ func NewSet(width, height int, opts *NewSetOptions) *Set {
 	s := &Set{
 		width:  width,
 		height: height,
-		frees: []image.Rectangle{
+		empties: []image.Rectangle{
 			image.Rect(0, 0, width, height),
 		},
 
@@ -36,7 +36,7 @@ func NewSet(width, height int, opts *NewSetOptions) *Set {
 	return s
 }
 
-func appendFreeRects(rects []image.Rectangle, parent, filled image.Rectangle) []image.Rectangle {
+func appendEmptyNeighbours(rects []image.Rectangle, parent, filled image.Rectangle) []image.Rectangle {
 	if !filled.In(parent) {
 		return append(rects, parent)
 	}
@@ -75,16 +75,10 @@ func appendFreeRects(rects []image.Rectangle, parent, filled image.Rectangle) []
 	return rects
 }
 
-func abs(n int) int {
-	if n < 0 {
-		return -n
-	}
-	return n
-}
-
 func (s *Set) Insert(rect *image.Rectangle) bool {
-	s.tmps = append(s.tmps[:0], s.frees...)
-	// Filter too small rectangles
+	// Set the free regions from last insertion
+	s.tmps = append(s.tmps[:0], s.empties...)
+	// Filter out too small regions
 	n := 0
 	for i := 0; i < len(s.tmps); i++ {
 		if rect.Dx() > s.tmps[i].Dx() || rect.Dy() > s.tmps[i].Dy() {
@@ -94,11 +88,11 @@ func (s *Set) Insert(rect *image.Rectangle) bool {
 		n++
 	}
 	s.tmps = s.tmps[:n]
-	// TODO: find the most optimal in free ones
+	// Abort if no available rectangle
 	if len(s.tmps) == 0 {
 		return false
 	}
-	// Find best rect
+	// Find best rectangle (the closest to top left corner)
 	best := s.tmps[0]
 	bs := best.Min.X + best.Min.Y
 	for i := range s.tmps {
@@ -107,27 +101,26 @@ func (s *Set) Insert(rect *image.Rectangle) bool {
 			bs = d
 		}
 	}
-
-	slot := best
-	*rect = rect.Add(slot.Min)
+	// Insert the provided rectangle with the origin of the best free region
+	*rect = rect.Add(best.Min)
 	s.rects = append(s.rects, rect)
-
+	// Split the regions that used to be empty with new empty neighbours
 	s.tmps = s.tmps[:0]
-	for i := range s.frees {
-		if ix := rect.Intersect(s.frees[i]); !ix.Empty() {
-			s.tmps = appendFreeRects(s.tmps, s.frees[i], ix)
+	for i := range s.empties {
+		if ix := rect.Intersect(s.empties[i]); !ix.Empty() {
+			s.tmps = appendEmptyNeighbours(s.tmps, s.empties[i], ix)
 		} else {
-			s.tmps = append(s.tmps, s.frees[i])
+			s.tmps = append(s.tmps, s.empties[i])
 		}
 	}
-
-	s.frees = s.frees[:0]
+	// Prepare the empty regions for next insertion
+	s.empties = s.empties[:0]
 	for i := range s.tmps {
 		if s.tmps[i].Dx() < s.minSize.X || s.tmps[i].Dy() < s.minSize.Y {
 			continue
 		}
 		var contained bool
-		for _, parent := range s.frees {
+		for _, parent := range s.empties {
 			if s.tmps[i] == parent || s.tmps[i].In(parent) {
 				contained = true
 				break
@@ -136,7 +129,7 @@ func (s *Set) Insert(rect *image.Rectangle) bool {
 		if contained {
 			continue
 		}
-		s.frees = append(s.frees, s.tmps[i])
+		s.empties = append(s.empties, s.tmps[i])
 	}
 
 	fmt.Println("len:", len(s.rects))
