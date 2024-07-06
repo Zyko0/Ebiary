@@ -1,8 +1,8 @@
 package packing
 
 import (
-	"fmt"
 	"image"
+	"slices"
 )
 
 type Set struct {
@@ -122,8 +122,8 @@ func (s *Set) Insert(rect *image.Rectangle) bool {
 		var contained bool
 		// Filter out any duplicate or any empty region that is already
 		// contained by another one
-		for _, parent := range s.empties {
-			if s.tmps[i] == parent || s.tmps[i].In(parent) {
+		for _, empty := range s.empties {
+			if s.tmps[i] == empty || s.tmps[i].In(empty) {
 				contained = true
 				break
 			}
@@ -134,7 +134,126 @@ func (s *Set) Insert(rect *image.Rectangle) bool {
 		s.empties = append(s.empties, s.tmps[i])
 	}
 
-	fmt.Println("len:", len(s.rects))
+	//fmt.Println("len:", len(s.rects))
 
 	return true
+}
+
+func (s *Set) Free(rect *image.Rectangle) {
+	if rect == nil || len(s.rects) == 0 {
+		return
+	}
+	idx := slices.Index(s.rects, rect)
+	if idx != -1 {
+		s.rects = slices.Delete(s.rects, idx, idx+1)
+
+		s.tmps = s.tmps[:0]
+		for _, e := range s.empties {
+			if e.Max.X == rect.Min.X || e.Min.X == rect.Max.X || e.Max.Y == rect.Min.Y || e.Min.Y == rect.Max.Y {
+				s.tmps = append(s.tmps, e)
+			}
+		}
+		println("count around:", len(s.tmps))
+		// Create a big rectangle containing all neighbours
+		parent := *rect
+		for _, e := range s.tmps {
+			parent.Min.X = min(parent.Min.X, e.Min.X)
+			parent.Min.Y = min(parent.Min.Y, e.Min.Y)
+			parent.Max.X = max(parent.Max.X, e.Max.X)
+			parent.Max.Y = max(parent.Max.Y, e.Max.Y)
+		}
+		//s.tmps = append(s.tmps, parent)
+		var occupied []image.Rectangle
+		for _, r := range s.rects {
+			if r.In(parent) {
+				occupied = append(occupied, *r)
+			}
+		}
+		// Merge a maximum of rectangles around the freed one
+		/*var done bool
+		for !done {
+			done = true
+			biggest := *rect
+			toDel := image.Rectangle{}
+			bs := biggest.Dx() * biggest.Dy()
+			for _, e := range s.tmps {
+				ok := true
+				t := *rect
+				if e.Max.X > rect.Max.X && e.Min.Y <= rect.Min.Y && e.Max.Y >= rect.Max.Y {
+					t.Max.X = e.Max.X
+					for _, r := range occupied {
+						if r.In(t) {
+							ok = false
+							break
+						}
+					}
+				} else if e.Max.X < rect.Min.X && e.Min.Y <= rect.Min.Y && e.Max.Y >= rect.Max.Y {
+					t.Min.X = e.Min.X
+					for _, r := range occupied {
+						if r.In(t) {
+							ok = false
+							break
+						}
+					}
+				}
+				if e.Max.Y > rect.Min.Y && e.Min.X <= rect.Min.X && e.Max.X >= rect.Max.X {
+					t.Min.Y = e.Min.Y
+					for _, r := range occupied {
+						if r.In(t) {
+							ok = false
+							break
+						}
+					}
+				} else if e.Max.Y < rect.Min.Y && e.Min.X <= rect.Min.X && e.Max.X >= rect.Max.X {
+					t.Min.X = e.Min.X
+					for _, r := range occupied {
+						if r.In(t) {
+							ok = false
+							break
+						}
+					}
+				}
+				if ok {
+					if size := t.Dx() * t.Dy(); size > bs {
+						bs = size
+						biggest = t
+						toDel = e
+						done = false
+					}
+				}
+			}
+			if biggest != *rect {
+				idx := slices.Index(s.empties, toDel)
+				if idx != -1 {
+					s.empties = slices.Delete(s.empties, idx, idx+1)
+				}
+				//s.empties = append(s.empties, biggest)
+				s.tmps = append(s.tmps[:0], biggest)
+				done = true
+			} else {
+				s.tmps = append(s.tmps[:0], *rect)
+				done = true
+			}
+		}*/
+		// Prepare the empty regions for next insertion
+		for i := range s.tmps {
+			if s.tmps[i].Dx() < s.minSize.X || s.tmps[i].Dy() < s.minSize.Y {
+				continue
+			}
+			var contained bool
+			// Filter out any duplicate or any empty region that is already
+			// contained by another one
+			for _, e := range s.empties {
+				if s.tmps[i] == e || s.tmps[i].In(e) {
+					contained = true
+					break
+				}
+			}
+			if contained {
+				continue
+			}
+			s.empties = append(s.empties, s.tmps[i])
+		}
+		//s.empties = append(s.empties, s.tmps...)
+	}
 }

@@ -23,7 +23,7 @@ func New(width, height int, opts *NewAtlasOptions) *Atlas {
 			MinSize: opts.MinSize,
 		}
 	}
-	
+
 	return &Atlas{
 		native: ebiten.NewImageWithOptions(
 			image.Rect(0, 0, width, height),
@@ -54,4 +54,9 @@ func (a *Atlas) NewImage(width, height int) *Image {
 	}
 
 	return img
+}
+
+func (a *Atlas) Free(img *Image) {
+	img.Image().Clear()
+	a.set.Free(img.bounds)
 }

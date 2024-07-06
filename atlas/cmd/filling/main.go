@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"log"
 	"math/rand"
+	"slices"
 
 	"github.com/Zyko0/Ebiary/atlas"
 	"github.com/hajimehoshi/ebiten/v2"
@@ -17,6 +18,7 @@ const (
 
 type App struct {
 	atlas *atlas.Atlas
+	imgs  []*atlas.Image
 }
 
 func New() *App {
@@ -31,7 +33,7 @@ func (a *App) Update() error {
 	if ebiten.IsKeyPressed(ebiten.KeySpace) {
 		//if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 		for i := 0; i < 8; i++ {
-			w, h := 16+rand.Intn(32), 16+rand.Intn(32)
+			w, h := 16+rand.Intn(48), 16+rand.Intn(48)
 			//w, h = 32, 32
 			img := a.atlas.NewImage(w, h)
 			if img != nil {
@@ -41,6 +43,17 @@ func (a *App) Update() error {
 					B: uint8(rand.Intn(255)),
 					A: 255,
 				})
+				a.imgs = append(a.imgs, img)
+			}
+		}
+	}
+	if ebiten.IsKeyPressed(ebiten.KeyBackspace) {
+		for i := 0; i < 8; i++ {
+			if len(a.imgs) > 0 {
+				idx := rand.Intn(len(a.imgs))
+				img := a.imgs[idx]
+				a.imgs = slices.Delete(a.imgs, idx, idx+1)
+				a.atlas.Free(img)
 			}
 		}
 	}
