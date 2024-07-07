@@ -32,7 +32,7 @@ func init() {
 	}
 	font = &text.GoTextFace{
 		Source: source,
-		Size:   12,
+		Size:   24,
 	}
 }
 
@@ -114,7 +114,7 @@ func (a *App) Draw(screen *ebiten.Image) {
 
 	if img := atlas.TextAtlasImage(); img != nil {
 		opts := &ebiten.DrawImageOptions{}
-		opts.GeoM.Translate(800, 32)
+		opts.GeoM.Translate(1500, 32)
 		screen.DrawImage(img, opts)
 	}
 

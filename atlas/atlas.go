@@ -31,7 +31,8 @@ func New(width, height int, opts *NewAtlasOptions) *Atlas {
 		native: ebiten.NewImageWithOptions(
 			image.Rect(0, 0, width, height),
 			&ebiten.NewImageOptions{
-				Unmanaged: true,
+				// TODO: make the unmanaged optional
+				Unmanaged: false, //true,
 			},
 		),
 		set: packing.NewSet(width, height, setOpts),

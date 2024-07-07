@@ -78,8 +78,7 @@ func DrawText(dst *ebiten.Image, str string, face text.Face, opts *text.DrawOpti
 		}
 		// Add glyph draw command
 		dc.Image = cached
-		dc.GeoM.Reset()
-		dc.GeoM.Concat(opts.GeoM)
+		dc.GeoM = opts.GeoM
 		dc.GeoM.Translate(glyph.X, glyph.Y)
 		textDrawList.Add(dc)
 	}
