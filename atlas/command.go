@@ -10,12 +10,20 @@ type drawRange struct {
 	end   int
 }
 
+// DrawList stores triangle versions of DrawImage calls when
+// all images are sub-images of an atlas.
+// Temporary vertices and indices can be re-used after calling
+// Flush, so it is more efficient to keep a reference to a DrawList
+// instead of creating a new one every frame.
 type DrawList struct {
 	ranges []drawRange
 	vx     []ebiten.Vertex
 	ix     []uint16
 }
 
+// DrawCommand is the equivalent of the regular DrawImageOptions
+// but only including options that will not break batching.
+// Filter, Address, Blend and AntiAlias are determined at Flush()
 type DrawCommand struct {
 	Image *Image
 
@@ -23,6 +31,11 @@ type DrawCommand struct {
 	GeoM       ebiten.GeoM
 }
 
+// Add adds DrawImage commands to the DrawList, images from multiple
+// atlases can be added but they will break the previous batch bound to
+// a different atlas, requiring an additional draw call internally.
+// So, it is better to have the maximum of consecutive DrawCommand images
+// sharing the same atlas.
 func (dl *DrawList) Add(commands ...*DrawCommand) {
 	if len(commands) == 0 {
 		return
@@ -53,11 +66,6 @@ func (dl *DrawList) Add(commands ...*DrawCommand) {
 			float64(cmd.Image.bounds.Dx()),
 			float64(cmd.Image.bounds.Dy()),
 		)
-		w -= x
-		h -= y
-		/*fmt.Printf("xy: %.0f; %.0f - wh: %.0f; %.0f (wh %d, %d)\n",
-			x, y, w, h, cmd.Image.bounds.Dx(), cmd.Image.bounds.Dy(),
-		)*/
 		opts.R = cmd.ColorScale.R()
 		opts.G = cmd.ColorScale.G()
 		opts.B = cmd.ColorScale.B()
@@ -68,8 +76,8 @@ func (dl *DrawList) Add(commands ...*DrawCommand) {
 		opts.SrcHeight = float32(cmd.Image.bounds.Dy())
 		opts.DstX = float32(x)
 		opts.DstY = float32(y)
-		opts.DstWidth = float32(w)
-		opts.DstHeight = float32(h)
+		opts.DstWidth = float32(w - x)
+		opts.DstHeight = float32(h - y)
 		dl.vx, dl.ix = graphics.AppendRectVerticesIndices(
 			dl.vx, dl.ix, batch.end, opts,
 		)
@@ -78,6 +86,8 @@ func (dl *DrawList) Add(commands ...*DrawCommand) {
 	}
 }
 
+// DrawOptions are additional options that will be applied to
+// all draw commands from the draw list when calling Flush().
 type DrawOptions struct {
 	ColorScaleMode ebiten.ColorScaleMode
 	Blend          ebiten.Blend
@@ -86,6 +96,8 @@ type DrawOptions struct {
 	AntiAlias      bool
 }
 
+// Flush executes all the draw commands as the smallest possible
+// amount of draw calls, and then clears the list for next uses.
 func (dl *DrawList) Flush(dst *ebiten.Image, opts *DrawOptions) {
 	index := 0
 	for _, r := range dl.ranges {
@@ -103,6 +115,7 @@ func (dl *DrawList) Flush(dst *ebiten.Image, opts *DrawOptions) {
 		)
 		index += r.end
 	}
+	// Clear buffers
 	dl.ranges = dl.ranges[:0]
 	dl.vx = dl.vx[:0]
 	dl.ix = dl.ix[:0]
