@@ -26,12 +26,12 @@ func NewSet(width, height int, opts *NewSetOptions) *Set {
 		empties: []image.Rectangle{
 			image.Rect(0, 0, width, height),
 		},
-
-		minSize: image.Pt(1, 1),
 	}
 	if opts != nil {
 		s.minSize = opts.MinSize
 	}
+	s.minSize.X = max(s.minSize.X, 1)
+	s.minSize.Y = max(s.minSize.Y, 1)
 
 	return s
 }
@@ -140,6 +140,7 @@ func (s *Set) Insert(rect *image.Rectangle) bool {
 }
 
 func (s *Set) Free(rect *image.Rectangle) {
+	panic("unimplemented")
 	if rect == nil || len(s.rects) == 0 {
 		return
 	}

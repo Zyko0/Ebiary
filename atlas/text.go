@@ -25,6 +25,8 @@ func TextAtlasImage() *ebiten.Image {
 	return nil
 }
 
+// DrawText is broken at the moment because it does not take glyph
+// variations into account.
 func DrawText(dst *ebiten.Image, str string, face text.Face, opts *text.DrawOptions) {
 	atlas, ok := textAtlases[face]
 	if !ok {

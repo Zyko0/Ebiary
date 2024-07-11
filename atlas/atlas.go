@@ -17,22 +17,25 @@ type NewAtlasOptions struct {
 	// It is a hint to improve the performance of allocations
 	// of new images.
 	MinSize image.Point
+	// Unmanaged is the same ebitengine's image option.
+	Unmanaged bool
 }
 
 func New(width, height int, opts *NewAtlasOptions) *Atlas {
 	var setOpts *packing.NewSetOptions
+	var unmanaged bool
 	if opts != nil {
 		setOpts = &packing.NewSetOptions{
 			MinSize: opts.MinSize,
 		}
+		unmanaged = opts.Unmanaged
 	}
 
 	return &Atlas{
 		native: ebiten.NewImageWithOptions(
 			image.Rect(0, 0, width, height),
 			&ebiten.NewImageOptions{
-				// TODO: make the unmanaged optional
-				Unmanaged: false, //true,
+				Unmanaged: unmanaged,
 			},
 		),
 		set: packing.NewSet(width, height, setOpts),
@@ -64,6 +67,13 @@ func (a *Atlas) NewImage(width, height int) *Image {
 	}
 
 	return img
+}
+
+func (a *Atlas) SubImage(bounds image.Rectangle) *Image {
+	return &Image{
+		atlas:  a,
+		bounds: &bounds,
+	}
 }
 
 // Free is not implemented
