@@ -5,6 +5,8 @@ A small package providing an `Atlas` type as well as `atlas.Image` which can be 
 It works by alleviating some generic work done by ebitengine when treating `DrawImage` commands.
 Here, since the images are just regions of an atlas image, the commands can be converted to a slice of triangles that can be submitted in a single ebitengine command, relieving ebitengine from doing additional unnecessary work.
 
+Originally made to address this: https://github.com/hajimehoshi/ebiten/issues/2976
+
 ## Usage
 
 `go get github.com/Zyko0/Ebiary/atlas`
