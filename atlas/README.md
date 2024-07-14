@@ -42,6 +42,8 @@ for _, s := range sprites {
 dl.Flush(screen, nil)
 ```
 
+An example can be found in [examples/usage/main.go](./examples/usage/main.go)
+
 ### Notes
 
 - The `Text*` related stuff is not implemented properly and will probably never work, since I realized we lack context from `text/v2` to cache all the variations of a glyphs. This results in a drawn text but some characters will have an incorrect X offset. 
