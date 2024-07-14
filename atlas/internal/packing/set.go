@@ -134,8 +134,6 @@ func (s *Set) Insert(rect *image.Rectangle) bool {
 		s.empties = append(s.empties, s.tmps[i])
 	}
 
-	//fmt.Println("len:", len(s.rects))
-
 	return true
 }
 
@@ -154,7 +152,6 @@ func (s *Set) Free(rect *image.Rectangle) {
 				s.tmps = append(s.tmps, e)
 			}
 		}
-		println("count around:", len(s.tmps))
 		// Create a big rectangle containing all neighbours
 		parent := *rect
 		for _, e := range s.tmps {
@@ -171,71 +168,7 @@ func (s *Set) Free(rect *image.Rectangle) {
 			}
 		}
 		// Merge a maximum of rectangles around the freed one
-		/*var done bool
-		for !done {
-			done = true
-			biggest := *rect
-			toDel := image.Rectangle{}
-			bs := biggest.Dx() * biggest.Dy()
-			for _, e := range s.tmps {
-				ok := true
-				t := *rect
-				if e.Max.X > rect.Max.X && e.Min.Y <= rect.Min.Y && e.Max.Y >= rect.Max.Y {
-					t.Max.X = e.Max.X
-					for _, r := range occupied {
-						if r.In(t) {
-							ok = false
-							break
-						}
-					}
-				} else if e.Max.X < rect.Min.X && e.Min.Y <= rect.Min.Y && e.Max.Y >= rect.Max.Y {
-					t.Min.X = e.Min.X
-					for _, r := range occupied {
-						if r.In(t) {
-							ok = false
-							break
-						}
-					}
-				}
-				if e.Max.Y > rect.Min.Y && e.Min.X <= rect.Min.X && e.Max.X >= rect.Max.X {
-					t.Min.Y = e.Min.Y
-					for _, r := range occupied {
-						if r.In(t) {
-							ok = false
-							break
-						}
-					}
-				} else if e.Max.Y < rect.Min.Y && e.Min.X <= rect.Min.X && e.Max.X >= rect.Max.X {
-					t.Min.X = e.Min.X
-					for _, r := range occupied {
-						if r.In(t) {
-							ok = false
-							break
-						}
-					}
-				}
-				if ok {
-					if size := t.Dx() * t.Dy(); size > bs {
-						bs = size
-						biggest = t
-						toDel = e
-						done = false
-					}
-				}
-			}
-			if biggest != *rect {
-				idx := slices.Index(s.empties, toDel)
-				if idx != -1 {
-					s.empties = slices.Delete(s.empties, idx, idx+1)
-				}
-				//s.empties = append(s.empties, biggest)
-				s.tmps = append(s.tmps[:0], biggest)
-				done = true
-			} else {
-				s.tmps = append(s.tmps[:0], *rect)
-				done = true
-			}
-		}*/
+		
 		// Prepare the empty regions for next insertion
 		for i := range s.tmps {
 			if s.tmps[i].Dx() < s.minSize.X || s.tmps[i].Dy() < s.minSize.Y {

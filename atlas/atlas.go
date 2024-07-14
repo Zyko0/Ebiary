@@ -7,6 +7,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+// Atlas is a minimal write-only container for sub-images, that
+// can be used with a DrawList to batch draw commands as triangles.
 type Atlas struct {
 	native *ebiten.Image
 	set    *packing.Set
@@ -14,8 +16,8 @@ type Atlas struct {
 
 type NewAtlasOptions struct {
 	// MinSize is the minimum size of images on the atlas.
-	// It is a hint to improve the performance of allocations
-	// of new images.
+	// It is an optional hint to improve the allocation time
+	// of new images on the atlas.
 	MinSize image.Point
 	// Unmanaged is the same ebitengine's image option.
 	Unmanaged bool
@@ -69,6 +71,9 @@ func (a *Atlas) NewImage(width, height int) *Image {
 	return img
 }
 
+// SubImage returns an image matching a specific region of the atlas.
+// It is useful if you want to create the atlas from a spritesheet and
+// that you know the regions of you sub images.
 func (a *Atlas) SubImage(bounds image.Rectangle) *Image {
 	return &Image{
 		atlas:  a,

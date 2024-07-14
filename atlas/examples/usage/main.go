@@ -149,15 +149,6 @@ func main() {
 	ebiten.SetCursorShape(ebiten.CursorShapeCrosshair)
 	ebiten.SetVsyncEnabled(false)
 
-	/*f, err := os.Create("beat.prof")
-	if err != nil {
-		log.Fatal(err)
-	}
-	if err := pprof.StartCPUProfile(f); err != nil {
-		log.Fatal(err)
-	}
-	defer pprof.StopCPUProfile()*/
-
 	if err := ebiten.RunGame(New()); err != nil {
 		log.Fatal("err run game: ", err)
 	}

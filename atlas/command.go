@@ -99,19 +99,23 @@ type DrawOptions struct {
 // Flush executes all the draw commands as the smallest possible
 // amount of draw calls, and then clears the list for next uses.
 func (dl *DrawList) Flush(dst *ebiten.Image, opts *DrawOptions) {
+	var topts *ebiten.DrawTrianglesOptions
+	if opts != nil {
+		topts = &ebiten.DrawTrianglesOptions{
+			ColorScaleMode: opts.ColorScaleMode,
+			Blend:          opts.Blend,
+			Filter:         opts.Filter,
+			Address:        opts.Address,
+			AntiAlias:      opts.AntiAlias,
+		}
+	}
 	index := 0
 	for _, r := range dl.ranges {
 		dst.DrawTriangles(
 			dl.vx[index*4:r.end*4],
 			dl.ix[index*6:r.end*6],
 			r.atlas.native,
-			&ebiten.DrawTrianglesOptions{
-				ColorScaleMode: opts.ColorScaleMode,
-				Blend:          opts.Blend,
-				Filter:         opts.Filter,
-				Address:        opts.Address,
-				AntiAlias:      opts.AntiAlias,
-			},
+			topts,
 		)
 		index += r.end
 	}
