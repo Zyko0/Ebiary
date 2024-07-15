@@ -24,8 +24,8 @@ type App struct {
 
 func New() *App {
 	return &App{
-		atlas: atlas.New(1024, 1024, &atlas.NewAtlasOptions{
-			MinSize: image.Pt(16, 16),
+		atlas: atlas.New(1920, 1080, &atlas.NewAtlasOptions{
+			MinSize: image.Pt(8, 8),
 		}),
 	}
 }
@@ -37,7 +37,7 @@ func (a *App) Update() error {
 	if ebiten.IsKeyPressed(ebiten.KeySpace) {
 		//if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 		for i := 0; i < 32; i++ {
-			w, h := 16+rand.Intn(48), 16+rand.Intn(48)
+			w, h := 8+rand.Intn(32), 8+rand.Intn(32)
 			//w, h = 32, 32
 			img := a.atlas.NewImage(w, h)
 			if img != nil {

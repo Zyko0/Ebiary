@@ -77,7 +77,6 @@ func appendEmptyNeighbours(rects []image.Rectangle, parent, filled image.Rectang
 }
 
 func (s *Set) sanitizeEmptyRegions(current []image.Rectangle) {
-	s.empties = s.empties[:0]
 	// Sort empty regions by size to ensure smaller regions are evicted if
 	// contained by bigger ones
 	sort.SliceStable(current, func(i, j int) bool {
@@ -85,6 +84,7 @@ func (s *Set) sanitizeEmptyRegions(current []image.Rectangle) {
 		sj := current[j].Dx() * current[j].Dy()
 		return si > sj
 	})
+	s.empties = s.empties[:0]
 	for i := range current {
 		if current[i].Dx() < s.minSize.X || current[i].Dy() < s.minSize.Y {
 			continue
@@ -109,15 +109,13 @@ func (s *Set) Insert(rect *image.Rectangle) bool {
 	// Set the free regions from last insertion
 	s.tmps = append(s.tmps[:0], s.empties...)
 	// Filter out too small regions
-	n := 0
-	for i := 0; i < len(s.tmps); i++ {
-		if rect.Dx() > s.tmps[i].Dx() || rect.Dy() > s.tmps[i].Dy() {
+	s.tmps = s.tmps[:0]
+	for _, r := range s.empties {
+		if rect.Dx() > r.Dx() || rect.Dy() > r.Dy() {
 			continue
 		}
-		s.tmps[n] = s.tmps[i]
-		n++
+		s.tmps = append(s.tmps, r)
 	}
-	s.tmps = s.tmps[:n]
 	// Abort if no available rectangle
 	if len(s.tmps) == 0 {
 		return false
@@ -229,7 +227,6 @@ func (s *Set) Free(rect *image.Rectangle) {
 		// Keep the largest region
 		sX := rX.Dx() * rX.Dy()
 		sY := rY.Dx() * rY.Dy()
-
 		var freed image.Rectangle
 		if sX > sY {
 			freed = rX
