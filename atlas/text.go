@@ -2,11 +2,9 @@ package atlas
 
 import (
 	"image"
-	"math/rand"
 	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 )
 
@@ -43,19 +41,6 @@ func DrawText(dst *ebiten.Image, str string, face text.Face, opts *text.DrawOpti
 			glyphs: map[rune]*Image{},
 		}
 		textAtlases[face] = atlas
-	}
-
-	if inpututil.IsKeyJustPressed(ebiten.KeyDelete) {
-		if len(atlas.glyphs) > 0 {
-			stop := rand.Intn(len(atlas.glyphs))
-			for r := range atlas.glyphs {
-				if stop <= 0 {
-					atlas.Atlas.Free(atlas.glyphs[r])
-					delete(atlas.glyphs, r)
-				}
-				stop--
-			}
-		}
 	}
 
 	glyphs := text.AppendGlyphs(nil, str, face, &opts.LayoutOptions)
