@@ -3,6 +3,7 @@ package packing
 import (
 	"image"
 	"slices"
+	"sort"
 )
 
 type Set struct {
@@ -75,6 +76,35 @@ func appendEmptyNeighbours(rects []image.Rectangle, parent, filled image.Rectang
 	return rects
 }
 
+func (s *Set) sanitizeEmptyRegions(current []image.Rectangle) {
+	s.empties = s.empties[:0]
+	// Sort empty regions by size to ensure smaller regions are evicted if
+	// contained by bigger ones
+	sort.SliceStable(current, func(i, j int) bool {
+		si := current[i].Dx() * current[i].Dy()
+		sj := current[j].Dx() * current[j].Dy()
+		return si > sj
+	})
+	for i := range current {
+		if current[i].Dx() < s.minSize.X || current[i].Dy() < s.minSize.Y {
+			continue
+		}
+		var contained bool
+		// Filter out any duplicate or any empty region that is already
+		// contained by another one
+		for _, empty := range s.empties {
+			if current[i] == empty || current[i].In(empty) {
+				contained = true
+				break
+			}
+		}
+		if contained {
+			continue
+		}
+		s.empties = append(s.empties, current[i])
+	}
+}
+
 func (s *Set) Insert(rect *image.Rectangle) bool {
 	// Set the free regions from last insertion
 	s.tmps = append(s.tmps[:0], s.empties...)
@@ -114,31 +144,12 @@ func (s *Set) Insert(rect *image.Rectangle) bool {
 		}
 	}
 	// Prepare the empty regions for next insertion
-	s.empties = s.empties[:0]
-	for i := range s.tmps {
-		if s.tmps[i].Dx() < s.minSize.X || s.tmps[i].Dy() < s.minSize.Y {
-			continue
-		}
-		var contained bool
-		// Filter out any duplicate or any empty region that is already
-		// contained by another one
-		for _, empty := range s.empties {
-			if s.tmps[i] == empty || s.tmps[i].In(empty) {
-				contained = true
-				break
-			}
-		}
-		if contained {
-			continue
-		}
-		s.empties = append(s.empties, s.tmps[i])
-	}
+	s.sanitizeEmptyRegions(s.tmps)
 
 	return true
 }
 
 func (s *Set) Free(rect *image.Rectangle) {
-	panic("unimplemented")
 	if rect == nil || len(s.rects) == 0 {
 		return
 	}
@@ -146,48 +157,168 @@ func (s *Set) Free(rect *image.Rectangle) {
 	if idx != -1 {
 		s.rects = slices.Delete(s.rects, idx, idx+1)
 
+		// Try to grow the just freed region until it's not possible anymore
+		// TODO: awful algorithm but curiously fast enough for the moment
+		// Filter Y-intersecting rectangles only
+		freed := *rect
 		s.tmps = s.tmps[:0]
-		for _, e := range s.empties {
-			if e.Max.X == rect.Min.X || e.Min.X == rect.Max.X || e.Max.Y == rect.Min.Y || e.Min.Y == rect.Max.Y {
-				s.tmps = append(s.tmps, e)
-			}
-		}
-		// Create a big rectangle containing all neighbours
-		parent := *rect
-		for _, e := range s.tmps {
-			parent.Min.X = min(parent.Min.X, e.Min.X)
-			parent.Min.Y = min(parent.Min.Y, e.Min.Y)
-			parent.Max.X = max(parent.Max.X, e.Max.X)
-			parent.Max.Y = max(parent.Max.Y, e.Max.Y)
-		}
-		//s.tmps = append(s.tmps, parent)
-		var occupied []image.Rectangle
 		for _, r := range s.rects {
-			if r.In(parent) {
-				occupied = append(occupied, *r)
+			if r.Max.Y >= freed.Min.Y && r.Min.Y <= freed.Max.Y {
+				s.tmps = append(s.tmps, *r)
 			}
 		}
-		// Merge a maximum of rectangles around the freed one
-		
-		// Prepare the empty regions for next insertion
-		for i := range s.tmps {
-			if s.tmps[i].Dx() < s.minSize.X || s.tmps[i].Dy() < s.minSize.Y {
-				continue
-			}
-			var contained bool
-			// Filter out any duplicate or any empty region that is already
-			// contained by another one
-			for _, e := range s.empties {
-				if s.tmps[i] == e || s.tmps[i].In(e) {
-					contained = true
+		for freed.Min.X > 0 {
+			freed.Min.X -= 1
+			var found bool
+			for _, r := range s.tmps {
+				if !freed.Intersect(r).Empty() {
+					found = true
 					break
 				}
 			}
-			if contained {
-				continue
+			if found {
+				freed.Min.X += 1
+				break
 			}
-			s.empties = append(s.empties, s.tmps[i])
 		}
-		//s.empties = append(s.empties, s.tmps...)
+		for freed.Max.X < s.width {
+			freed.Max.X += 1
+			var found bool
+			for _, r := range s.tmps {
+				if !freed.Intersect(r).Empty() {
+					found = true
+					break
+				}
+			}
+			if found {
+				freed.Max.X -= 1
+				break
+			}
+		}
+		// Filter X-intersecting rectangles only
+		s.tmps = s.tmps[:0]
+		for _, r := range s.rects {
+			if r.Max.X >= freed.Min.X && r.Min.X <= freed.Max.X {
+				s.tmps = append(s.tmps, *r)
+			}
+		}
+		for freed.Min.Y > 0 {
+			freed.Min.Y -= 1
+			var found bool
+			for _, r := range s.tmps {
+				if !freed.Intersect(r).Empty() {
+					found = true
+					break
+				}
+			}
+			if found {
+				freed.Min.Y += 1
+				break
+			}
+		}
+		for freed.Max.Y < s.height {
+			freed.Max.Y += 1
+			var found bool
+			for _, r := range s.tmps {
+				if !freed.Intersect(r).Empty() {
+					found = true
+					break
+				}
+			}
+			if found {
+				freed.Max.Y -= 1
+				break
+			}
+		}
+		f0 := freed
+
+		// SECOND
+
+		freed = *rect
+		// Filter X-intersecting rectangles only
+		s.tmps = s.tmps[:0]
+		for _, r := range s.rects {
+			if r.Max.X >= freed.Min.X && r.Min.X <= freed.Max.X {
+				s.tmps = append(s.tmps, *r)
+			}
+		}
+		for freed.Min.Y > 0 {
+			freed.Min.Y -= 1
+			var found bool
+			for _, r := range s.tmps {
+				if !freed.Intersect(r).Empty() {
+					found = true
+					break
+				}
+			}
+			if found {
+				freed.Min.Y += 1
+				break
+			}
+		}
+		for freed.Max.Y < s.height {
+			freed.Max.Y += 1
+			var found bool
+			for _, r := range s.tmps {
+				if !freed.Intersect(r).Empty() {
+					found = true
+					break
+				}
+			}
+			if found {
+				freed.Max.Y -= 1
+				break
+			}
+		}
+		s.tmps = s.tmps[:0]
+		for _, r := range s.rects {
+			if r.Max.Y >= freed.Min.Y && r.Min.Y <= freed.Max.Y {
+				s.tmps = append(s.tmps, *r)
+			}
+		}
+		for freed.Min.X > 0 {
+			freed.Min.X -= 1
+			var found bool
+			for _, r := range s.tmps {
+				if !freed.Intersect(r).Empty() {
+					found = true
+					break
+				}
+			}
+			if found {
+				freed.Min.X += 1
+				break
+			}
+		}
+		for freed.Max.X < s.width {
+			freed.Max.X += 1
+			var found bool
+			for _, r := range s.tmps {
+				if !freed.Intersect(r).Empty() {
+					found = true
+					break
+				}
+			}
+			if found {
+				freed.Max.X -= 1
+				break
+			}
+		}
+		f1 := freed
+
+		s0 := f0.Dx() * f0.Dy()
+		s1 := f1.Dx() * f1.Dy()
+		//fmt.Println("s0", s0, f0.Dx(), f0.Dy(), "s1", s1, f1.Dx(), f1.Dy())
+		if s0 > s1 {
+			freed = f0
+		} else {
+			freed = f1
+		}
+
+		s.empties = append(s.empties, freed)
+		s.tmps = append(s.tmps[:0], s.empties...)
+
+		// Sanitize empty space
+		s.sanitizeEmptyRegions(s.tmps)
 	}
 }

@@ -81,9 +81,9 @@ func (a *Atlas) SubImage(bounds image.Rectangle) *Image {
 	}
 }
 
-// Free is not implemented
+// Free frees a region on the atlas, making it available for next
+// allocations.
 func (a *Atlas) Free(img *Image) {
-	panic("unimplemented")
 	img.Image().Clear()
 	a.set.Free(img.bounds)
 }

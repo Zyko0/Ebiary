@@ -9,6 +9,7 @@ import (
 
 	"github.com/Zyko0/Ebiary/atlas"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
 const (
@@ -30,9 +31,12 @@ func New() *App {
 }
 
 func (a *App) Update() error {
+	if inpututil.IsKeyJustPressed(ebiten.KeyEscape) {
+		return ebiten.Termination
+	}
 	if ebiten.IsKeyPressed(ebiten.KeySpace) {
 		//if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
-		for i := 0; i < 8; i++ {
+		for i := 0; i < 32; i++ {
 			w, h := 16+rand.Intn(48), 16+rand.Intn(48)
 			//w, h = 32, 32
 			img := a.atlas.NewImage(w, h)
@@ -47,8 +51,16 @@ func (a *App) Update() error {
 			}
 		}
 	}
+	if inpututil.IsKeyJustPressed(ebiten.KeyDelete) {
+		if len(a.imgs) > 0 {
+			idx := rand.Intn(len(a.imgs))
+			img := a.imgs[idx]
+			a.imgs = slices.Delete(a.imgs, idx, idx+1)
+			a.atlas.Free(img)
+		}
+	}
 	if ebiten.IsKeyPressed(ebiten.KeyBackspace) {
-		for i := 0; i < 8; i++ {
+		for i := 0; i < 32; i++ {
 			if len(a.imgs) > 0 {
 				idx := rand.Intn(len(a.imgs))
 				img := a.imgs[idx]
