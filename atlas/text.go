@@ -87,6 +87,4 @@ func DrawText(dst *ebiten.Image, str string, face text.Face, opts *text.DrawOpti
 	}
 	// Flush to destination
 	textDrawList.Flush(dst, &DrawOptions{})
-
-	//fmt.Println("lencached", len(atlas.glyphs))
 }

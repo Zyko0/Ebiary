@@ -3,6 +3,7 @@ package packing
 import (
 	"image"
 	"slices"
+	"sort"
 )
 
 type Set struct {
@@ -75,19 +76,46 @@ func appendEmptyNeighbours(rects []image.Rectangle, parent, filled image.Rectang
 	return rects
 }
 
+func (s *Set) sanitizeEmptyRegions(current []image.Rectangle) {
+	// Sort empty regions by size to ensure smaller regions are evicted if
+	// contained by bigger ones
+	sort.SliceStable(current, func(i, j int) bool {
+		si := current[i].Dx() * current[i].Dy()
+		sj := current[j].Dx() * current[j].Dy()
+		return si > sj
+	})
+	s.empties = s.empties[:0]
+	for i := range current {
+		if current[i].Dx() < s.minSize.X || current[i].Dy() < s.minSize.Y {
+			continue
+		}
+		var contained bool
+		// Filter out any duplicate or any empty region that is already
+		// contained by another one
+		for _, empty := range s.empties {
+			if current[i] == empty || current[i].In(empty) {
+				contained = true
+				break
+			}
+		}
+		if contained {
+			continue
+		}
+		s.empties = append(s.empties, current[i])
+	}
+}
+
 func (s *Set) Insert(rect *image.Rectangle) bool {
 	// Set the free regions from last insertion
 	s.tmps = append(s.tmps[:0], s.empties...)
 	// Filter out too small regions
-	n := 0
-	for i := 0; i < len(s.tmps); i++ {
-		if rect.Dx() > s.tmps[i].Dx() || rect.Dy() > s.tmps[i].Dy() {
+	s.tmps = s.tmps[:0]
+	for _, r := range s.empties {
+		if rect.Dx() > r.Dx() || rect.Dy() > r.Dy() {
 			continue
 		}
-		s.tmps[n] = s.tmps[i]
-		n++
+		s.tmps = append(s.tmps, r)
 	}
-	s.tmps = s.tmps[:n]
 	// Abort if no available rectangle
 	if len(s.tmps) == 0 {
 		return false
@@ -114,31 +142,21 @@ func (s *Set) Insert(rect *image.Rectangle) bool {
 		}
 	}
 	// Prepare the empty regions for next insertion
-	s.empties = s.empties[:0]
-	for i := range s.tmps {
-		if s.tmps[i].Dx() < s.minSize.X || s.tmps[i].Dy() < s.minSize.Y {
-			continue
-		}
-		var contained bool
-		// Filter out any duplicate or any empty region that is already
-		// contained by another one
-		for _, empty := range s.empties {
-			if s.tmps[i] == empty || s.tmps[i].In(empty) {
-				contained = true
-				break
-			}
-		}
-		if contained {
-			continue
-		}
-		s.empties = append(s.empties, s.tmps[i])
-	}
+	s.sanitizeEmptyRegions(s.tmps)
 
 	return true
 }
 
+func intersectAny(r image.Rectangle, rectangles []image.Rectangle) bool {
+	for i := range rectangles {
+		if !rectangles[i].Intersect(r).Empty() {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Set) Free(rect *image.Rectangle) {
-	panic("unimplemented")
 	if rect == nil || len(s.rects) == 0 {
 		return
 	}
@@ -146,48 +164,80 @@ func (s *Set) Free(rect *image.Rectangle) {
 	if idx != -1 {
 		s.rects = slices.Delete(s.rects, idx, idx+1)
 
-		s.tmps = s.tmps[:0]
-		for _, e := range s.empties {
-			if e.Max.X == rect.Min.X || e.Min.X == rect.Max.X || e.Max.Y == rect.Min.Y || e.Min.Y == rect.Max.Y {
-				s.tmps = append(s.tmps, e)
+		// Try to grow the just freed region until it's not possible anymore
+		// TODO: awful algorithm but curiously fast enough for the moment
+
+		// Grow by X
+		pushX := func(base image.Rectangle) image.Rectangle {
+			// Filter Y-intersecting rectangles only
+			s.tmps = s.tmps[:0]
+			for _, r := range s.rects {
+				if r.Max.Y >= base.Min.Y && r.Min.Y <= base.Max.Y {
+					s.tmps = append(s.tmps, *r)
+				}
 			}
-		}
-		// Create a big rectangle containing all neighbours
-		parent := *rect
-		for _, e := range s.tmps {
-			parent.Min.X = min(parent.Min.X, e.Min.X)
-			parent.Min.Y = min(parent.Min.Y, e.Min.Y)
-			parent.Max.X = max(parent.Max.X, e.Max.X)
-			parent.Max.Y = max(parent.Max.Y, e.Max.Y)
-		}
-		//s.tmps = append(s.tmps, parent)
-		var occupied []image.Rectangle
-		for _, r := range s.rects {
-			if r.In(parent) {
-				occupied = append(occupied, *r)
-			}
-		}
-		// Merge a maximum of rectangles around the freed one
-		
-		// Prepare the empty regions for next insertion
-		for i := range s.tmps {
-			if s.tmps[i].Dx() < s.minSize.X || s.tmps[i].Dy() < s.minSize.Y {
-				continue
-			}
-			var contained bool
-			// Filter out any duplicate or any empty region that is already
-			// contained by another one
-			for _, e := range s.empties {
-				if s.tmps[i] == e || s.tmps[i].In(e) {
-					contained = true
+			for base.Min.X > 0 {
+				base.Min.X -= 1
+				if intersectAny(base, s.tmps) {
+					base.Min.X += 1
 					break
 				}
 			}
-			if contained {
-				continue
+			for base.Max.X < s.width {
+				base.Max.X += 1
+				if intersectAny(base, s.tmps) {
+					base.Max.X -= 1
+					break
+				}
 			}
-			s.empties = append(s.empties, s.tmps[i])
+			return base
 		}
-		//s.empties = append(s.empties, s.tmps...)
+		// Grow by Y
+		pushY := func(base image.Rectangle) image.Rectangle {
+			// Filter X-intersecting rectangles only
+			s.tmps = s.tmps[:0]
+			for _, r := range s.rects {
+				if r.Max.X >= base.Min.X && r.Min.X <= base.Max.X {
+					s.tmps = append(s.tmps, *r)
+				}
+			}
+			for base.Min.Y > 0 {
+				base.Min.Y -= 1
+				if intersectAny(base, s.tmps) {
+					base.Min.Y += 1
+					break
+				}
+			}
+			for base.Max.Y < s.height {
+				base.Max.Y += 1
+				if intersectAny(base, s.tmps) {
+					base.Max.Y -= 1
+					break
+				}
+			}
+			return base
+		}
+
+		// Extend the region by X first
+		rX := pushX(*rect)
+		rX = pushY(rX)
+		// Extend the region by Y second
+		rY := pushY(*rect)
+		rY = pushX(rY)
+		// Keep the largest region
+		sX := rX.Dx() * rX.Dy()
+		sY := rY.Dx() * rY.Dy()
+		var freed image.Rectangle
+		if sX > sY {
+			freed = rX
+		} else {
+			freed = rY
+		}
+
+		s.empties = append(s.empties, freed)
+		s.tmps = append(s.tmps[:0], s.empties...)
+
+		// Sanitize empty space
+		s.sanitizeEmptyRegions(s.tmps)
 	}
 }

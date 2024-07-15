@@ -10,8 +10,9 @@ import (
 // Atlas is a minimal write-only container for sub-images, that
 // can be used with a DrawList to batch draw commands as triangles.
 type Atlas struct {
-	native *ebiten.Image
-	set    *packing.Set
+	native    *ebiten.Image
+	set       *packing.Set
+	unmanaged bool
 }
 
 type NewAtlasOptions struct {
@@ -41,6 +42,8 @@ func New(width, height int, opts *NewAtlasOptions) *Atlas {
 			},
 		),
 		set: packing.NewSet(width, height, setOpts),
+
+		unmanaged: unmanaged,
 	}
 }
 
@@ -81,9 +84,9 @@ func (a *Atlas) SubImage(bounds image.Rectangle) *Image {
 	}
 }
 
-// Free is not implemented
+// Free frees a region on the atlas, making it available for next
+// allocations.
 func (a *Atlas) Free(img *Image) {
-	panic("unimplemented")
 	img.Image().Clear()
 	a.set.Free(img.bounds)
 }
