@@ -48,5 +48,4 @@ An example can be found in [examples/usage/main.go](./examples/usage/main.go)
 
 ### Notes
 
-- The `Text*` related stuff is not implemented properly and will probably never work, since I realized we lack context from `text/v2` to cache all the variations of a glyphs. This results in a drawn text but some characters will have an incorrect X offset. 
-- The `Free` method is not implemented yet either at the moment, the `Atlas` is meant to be written to, and refered to by `atlas.Image` but not meant as a dynamic object capable of deallocations yet.
+- The `Text*` related stuff is not implemented properly and will probably never work, since I realized we lack context from `text/v2` to cache all the variations of a glyphs. This results in a drawn text but some characters will have an incorrect X offset.
