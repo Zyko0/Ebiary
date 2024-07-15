@@ -149,6 +149,15 @@ func (s *Set) Insert(rect *image.Rectangle) bool {
 	return true
 }
 
+func intersectAny(r image.Rectangle, rectangles []image.Rectangle) bool {
+	for i := range rectangles {
+		if !rectangles[i].Intersect(r).Empty() {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Set) Free(rect *image.Rectangle) {
 	if rect == nil || len(s.rects) == 0 {
 		return
@@ -159,160 +168,73 @@ func (s *Set) Free(rect *image.Rectangle) {
 
 		// Try to grow the just freed region until it's not possible anymore
 		// TODO: awful algorithm but curiously fast enough for the moment
-		// Filter Y-intersecting rectangles only
-		freed := *rect
-		s.tmps = s.tmps[:0]
-		for _, r := range s.rects {
-			if r.Max.Y >= freed.Min.Y && r.Min.Y <= freed.Max.Y {
-				s.tmps = append(s.tmps, *r)
-			}
-		}
-		for freed.Min.X > 0 {
-			freed.Min.X -= 1
-			var found bool
-			for _, r := range s.tmps {
-				if !freed.Intersect(r).Empty() {
-					found = true
-					break
-				}
-			}
-			if found {
-				freed.Min.X += 1
-				break
-			}
-		}
-		for freed.Max.X < s.width {
-			freed.Max.X += 1
-			var found bool
-			for _, r := range s.tmps {
-				if !freed.Intersect(r).Empty() {
-					found = true
-					break
-				}
-			}
-			if found {
-				freed.Max.X -= 1
-				break
-			}
-		}
-		// Filter X-intersecting rectangles only
-		s.tmps = s.tmps[:0]
-		for _, r := range s.rects {
-			if r.Max.X >= freed.Min.X && r.Min.X <= freed.Max.X {
-				s.tmps = append(s.tmps, *r)
-			}
-		}
-		for freed.Min.Y > 0 {
-			freed.Min.Y -= 1
-			var found bool
-			for _, r := range s.tmps {
-				if !freed.Intersect(r).Empty() {
-					found = true
-					break
-				}
-			}
-			if found {
-				freed.Min.Y += 1
-				break
-			}
-		}
-		for freed.Max.Y < s.height {
-			freed.Max.Y += 1
-			var found bool
-			for _, r := range s.tmps {
-				if !freed.Intersect(r).Empty() {
-					found = true
-					break
-				}
-			}
-			if found {
-				freed.Max.Y -= 1
-				break
-			}
-		}
-		f0 := freed
 
-		// SECOND
+		// Grow by X
+		pushX := func(base image.Rectangle) image.Rectangle {
+			// Filter Y-intersecting rectangles only
+			s.tmps = s.tmps[:0]
+			for _, r := range s.rects {
+				if r.Max.Y >= base.Min.Y && r.Min.Y <= base.Max.Y {
+					s.tmps = append(s.tmps, *r)
+				}
+			}
+			for base.Min.X > 0 {
+				base.Min.X -= 1
+				if intersectAny(base, s.tmps) {
+					base.Min.X += 1
+					break
+				}
+			}
+			for base.Max.X < s.width {
+				base.Max.X += 1
+				if intersectAny(base, s.tmps) {
+					base.Max.X -= 1
+					break
+				}
+			}
+			return base
+		}
+		// Grow by Y
+		pushY := func(base image.Rectangle) image.Rectangle {
+			// Filter X-intersecting rectangles only
+			s.tmps = s.tmps[:0]
+			for _, r := range s.rects {
+				if r.Max.X >= base.Min.X && r.Min.X <= base.Max.X {
+					s.tmps = append(s.tmps, *r)
+				}
+			}
+			for base.Min.Y > 0 {
+				base.Min.Y -= 1
+				if intersectAny(base, s.tmps) {
+					base.Min.Y += 1
+					break
+				}
+			}
+			for base.Max.Y < s.height {
+				base.Max.Y += 1
+				if intersectAny(base, s.tmps) {
+					base.Max.Y -= 1
+					break
+				}
+			}
+			return base
+		}
 
-		freed = *rect
-		// Filter X-intersecting rectangles only
-		s.tmps = s.tmps[:0]
-		for _, r := range s.rects {
-			if r.Max.X >= freed.Min.X && r.Min.X <= freed.Max.X {
-				s.tmps = append(s.tmps, *r)
-			}
-		}
-		for freed.Min.Y > 0 {
-			freed.Min.Y -= 1
-			var found bool
-			for _, r := range s.tmps {
-				if !freed.Intersect(r).Empty() {
-					found = true
-					break
-				}
-			}
-			if found {
-				freed.Min.Y += 1
-				break
-			}
-		}
-		for freed.Max.Y < s.height {
-			freed.Max.Y += 1
-			var found bool
-			for _, r := range s.tmps {
-				if !freed.Intersect(r).Empty() {
-					found = true
-					break
-				}
-			}
-			if found {
-				freed.Max.Y -= 1
-				break
-			}
-		}
-		s.tmps = s.tmps[:0]
-		for _, r := range s.rects {
-			if r.Max.Y >= freed.Min.Y && r.Min.Y <= freed.Max.Y {
-				s.tmps = append(s.tmps, *r)
-			}
-		}
-		for freed.Min.X > 0 {
-			freed.Min.X -= 1
-			var found bool
-			for _, r := range s.tmps {
-				if !freed.Intersect(r).Empty() {
-					found = true
-					break
-				}
-			}
-			if found {
-				freed.Min.X += 1
-				break
-			}
-		}
-		for freed.Max.X < s.width {
-			freed.Max.X += 1
-			var found bool
-			for _, r := range s.tmps {
-				if !freed.Intersect(r).Empty() {
-					found = true
-					break
-				}
-			}
-			if found {
-				freed.Max.X -= 1
-				break
-			}
-		}
-		f1 := freed
+		// Extend the region by X first
+		rX := pushX(*rect)
+		rX = pushY(rX)
+		// Extend the region by Y second
+		rY := pushY(*rect)
+		rY = pushX(rY)
+		// Keep the largest region
+		sX := rX.Dx() * rX.Dy()
+		sY := rY.Dx() * rY.Dy()
 
-		s0 := f0.Dx() * f0.Dy()
-		s1 := f1.Dx() * f1.Dy()
-		//fmt.Println("s0", s0, f0.Dx(), f0.Dy(), "s1", s1, f1.Dx(), f1.Dy())
-		if s0 > s1 {
-			freed = f0
+		var freed image.Rectangle
+		if sX > sY {
+			freed = rX
 		} else {
-			freed = f1
+			freed = rY
 		}
 
 		s.empties = append(s.empties, freed)
