@@ -15,6 +15,13 @@ type Point struct {
 	X, Y float32
 }
 
+func Pt(x, y float64) Point {
+	return Point{
+		X: float32(x),
+		Y: float32(y),
+	}
+}
+
 // adjustDestinationPixel is the original ebitengine implementation found here:
 // https://github.com/hajimehoshi/ebiten/blob/v2.8.0-alpha.1/internal/graphics/vertex.go#L102-L126
 func adjustDestinationPixel(x float32) float32 {
