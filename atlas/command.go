@@ -61,11 +61,35 @@ func (dl *DrawList) Add(commands ...*DrawCommand) {
 			batch = &dl.ranges[len(dl.ranges)-1]
 		}
 
-		x0, y0 := cmd.GeoM.Apply(0, 0)
-		x1, y1 := cmd.GeoM.Apply(
+		// Dst attributes
+		x, y := cmd.GeoM.Apply(0, 0)
+		opts.Dsts[0] = graphics.Point{
+			X: float32(x),
+			Y: float32(y),
+		}
+		x, y = cmd.GeoM.Apply(
+			float64(cmd.Image.bounds.Dx()), 0,
+		)
+		opts.Dsts[1] = graphics.Point{
+			X: float32(x),
+			Y: float32(y),
+		}
+		x, y = cmd.GeoM.Apply(
+			0, float64(cmd.Image.bounds.Dy()),
+		)
+		opts.Dsts[2] = graphics.Point{
+			X: float32(x),
+			Y: float32(y),
+		}
+		x, y = cmd.GeoM.Apply(
 			float64(cmd.Image.bounds.Dx()),
 			float64(cmd.Image.bounds.Dy()),
 		)
+		opts.Dsts[3] = graphics.Point{
+			X: float32(x),
+			Y: float32(y),
+		}
+		// Color and source attributes
 		opts.R = cmd.ColorScale.R()
 		opts.G = cmd.ColorScale.G()
 		opts.B = cmd.ColorScale.B()
@@ -74,10 +98,7 @@ func (dl *DrawList) Add(commands ...*DrawCommand) {
 		opts.SrcY0 = float32(cmd.Image.bounds.Min.Y)
 		opts.SrcX1 = float32(cmd.Image.bounds.Max.X)
 		opts.SrcY1 = float32(cmd.Image.bounds.Max.Y)
-		opts.DstX0 = float32(x0)
-		opts.DstY0 = float32(y0)
-		opts.DstX1 = float32(x1)
-		opts.DstY1 = float32(y1)
+
 		dl.vx, dl.ix = graphics.AppendRectVerticesIndices(
 			dl.vx, dl.ix, batch.end, opts,
 		)

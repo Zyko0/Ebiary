@@ -5,11 +5,14 @@ import "github.com/hajimehoshi/ebiten/v2"
 var rectIndices = [6]uint16{0, 1, 2, 1, 2, 3}
 
 type RectOpts struct {
-	DstX0, DstY0 float32
-	DstX1, DstY1 float32
+	Dsts         [4]Point
 	SrcX0, SrcY0 float32
 	SrcX1, SrcY1 float32
 	R, G, B, A   float32
+}
+
+type Point struct {
+	X, Y float32
 }
 
 // adjustDestinationPixel is the original ebitengine implementation found here:
@@ -41,13 +44,12 @@ func adjustDestinationPixel(x float32) float32 {
 }
 
 func AppendRectVerticesIndices(vertices []ebiten.Vertex, indices []uint16, index int, opts *RectOpts) ([]ebiten.Vertex, []uint16) {
-	sx0, sy0, dx0, dy0 := opts.SrcX0, opts.SrcY0, opts.DstX0, opts.DstY0
-	sx1, sy1, dx1, dy1 := opts.SrcX1, opts.SrcY1, opts.DstX1, opts.DstY1
+	sx0, sy0, sx1, sy1 := opts.SrcX0, opts.SrcY0, opts.SrcX1, opts.SrcY1
 	r, g, b, a := opts.R, opts.G, opts.B, opts.A
 	vertices = append(vertices,
 		ebiten.Vertex{
-			DstX:   adjustDestinationPixel(dx0),
-			DstY:   adjustDestinationPixel(dy0),
+			DstX:   adjustDestinationPixel(opts.Dsts[0].X),
+			DstY:   adjustDestinationPixel(opts.Dsts[0].Y),
 			SrcX:   sx0,
 			SrcY:   sy0,
 			ColorR: r,
@@ -56,8 +58,8 @@ func AppendRectVerticesIndices(vertices []ebiten.Vertex, indices []uint16, index
 			ColorA: a,
 		},
 		ebiten.Vertex{
-			DstX:   adjustDestinationPixel(dx1),
-			DstY:   adjustDestinationPixel(dy0),
+			DstX:   adjustDestinationPixel(opts.Dsts[1].X),
+			DstY:   adjustDestinationPixel(opts.Dsts[1].Y),
 			SrcX:   sx1,
 			SrcY:   sy0,
 			ColorR: r,
@@ -66,8 +68,8 @@ func AppendRectVerticesIndices(vertices []ebiten.Vertex, indices []uint16, index
 			ColorA: a,
 		},
 		ebiten.Vertex{
-			DstX:   adjustDestinationPixel(dx0),
-			DstY:   adjustDestinationPixel(dy1),
+			DstX:   adjustDestinationPixel(opts.Dsts[2].X),
+			DstY:   adjustDestinationPixel(opts.Dsts[2].Y),
 			SrcX:   sx0,
 			SrcY:   sy1,
 			ColorR: r,
@@ -76,8 +78,8 @@ func AppendRectVerticesIndices(vertices []ebiten.Vertex, indices []uint16, index
 			ColorA: a,
 		},
 		ebiten.Vertex{
-			DstX:   adjustDestinationPixel(dx1),
-			DstY:   adjustDestinationPixel(dy1),
+			DstX:   adjustDestinationPixel(opts.Dsts[3].X),
+			DstY:   adjustDestinationPixel(opts.Dsts[3].Y),
 			SrcX:   sx1,
 			SrcY:   sy1,
 			ColorR: r,
