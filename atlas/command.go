@@ -112,8 +112,8 @@ func (dl *DrawList) Flush(dst *ebiten.Image, opts *DrawOptions) {
 	index := 0
 	for _, r := range dl.ranges {
 		dst.DrawTriangles(
-			dl.vx[index*4:r.end*4],
-			dl.ix[index*6:r.end*6],
+			dl.vx[index*4:(index+r.end)*4],
+			dl.ix[index*6:(index+r.end)*6],
 			r.atlas.native,
 			topts,
 		)
