@@ -5,11 +5,11 @@ import "github.com/hajimehoshi/ebiten/v2"
 var rectIndices = [6]uint16{0, 1, 2, 1, 2, 3}
 
 type RectOpts struct {
-	DstX, DstY          float32
-	SrcX, SrcY          float32
-	DstWidth, DstHeight float32
-	SrcWidth, SrcHeight float32
-	R, G, B, A          float32
+	DstX0, DstY0 float32
+	DstX1, DstY1 float32
+	SrcX0, SrcY0 float32
+	SrcX1, SrcY1 float32
+	R, G, B, A   float32
 }
 
 // adjustDestinationPixel is the original ebitengine implementation found here:
@@ -41,45 +41,45 @@ func adjustDestinationPixel(x float32) float32 {
 }
 
 func AppendRectVerticesIndices(vertices []ebiten.Vertex, indices []uint16, index int, opts *RectOpts) ([]ebiten.Vertex, []uint16) {
-	sx, sy, dx, dy := opts.SrcX, opts.SrcY, opts.DstX, opts.DstY
-	sw, sh, dw, dh := opts.SrcWidth, opts.SrcHeight, opts.DstWidth, opts.DstHeight
+	sx0, sy0, dx0, dy0 := opts.SrcX0, opts.SrcY0, opts.DstX0, opts.DstY0
+	sx1, sy1, dx1, dy1 := opts.SrcX1, opts.SrcY1, opts.DstX1, opts.DstY1
 	r, g, b, a := opts.R, opts.G, opts.B, opts.A
 	vertices = append(vertices,
 		ebiten.Vertex{
-			DstX:   adjustDestinationPixel(dx),
-			DstY:   adjustDestinationPixel(dy),
-			SrcX:   sx,
-			SrcY:   sy,
+			DstX:   adjustDestinationPixel(dx0),
+			DstY:   adjustDestinationPixel(dy0),
+			SrcX:   sx0,
+			SrcY:   sy0,
 			ColorR: r,
 			ColorG: g,
 			ColorB: b,
 			ColorA: a,
 		},
 		ebiten.Vertex{
-			DstX:   adjustDestinationPixel(dx + dw),
-			DstY:   adjustDestinationPixel(dy),
-			SrcX:   sx + sw,
-			SrcY:   sy,
+			DstX:   adjustDestinationPixel(dx1),
+			DstY:   adjustDestinationPixel(dy0),
+			SrcX:   sx1,
+			SrcY:   sy0,
 			ColorR: r,
 			ColorG: g,
 			ColorB: b,
 			ColorA: a,
 		},
 		ebiten.Vertex{
-			DstX:   adjustDestinationPixel(dx),
-			DstY:   adjustDestinationPixel(dy + dh),
-			SrcX:   sx,
-			SrcY:   sy + sh,
+			DstX:   adjustDestinationPixel(dx0),
+			DstY:   adjustDestinationPixel(dy1),
+			SrcX:   sx0,
+			SrcY:   sy1,
 			ColorR: r,
 			ColorG: g,
 			ColorB: b,
 			ColorA: a,
 		},
 		ebiten.Vertex{
-			DstX:   adjustDestinationPixel(dx + dw),
-			DstY:   adjustDestinationPixel(dy + dh),
-			SrcX:   sx + sw,
-			SrcY:   sy + sh,
+			DstX:   adjustDestinationPixel(dx1),
+			DstY:   adjustDestinationPixel(dy1),
+			SrcX:   sx1,
+			SrcY:   sy1,
 			ColorR: r,
 			ColorG: g,
 			ColorB: b,

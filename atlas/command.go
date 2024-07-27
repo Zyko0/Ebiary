@@ -61,8 +61,8 @@ func (dl *DrawList) Add(commands ...*DrawCommand) {
 			batch = &dl.ranges[len(dl.ranges)-1]
 		}
 
-		x, y := cmd.GeoM.Apply(0, 0)
-		w, h := cmd.GeoM.Apply(
+		x0, y0 := cmd.GeoM.Apply(0, 0)
+		x1, y1 := cmd.GeoM.Apply(
 			float64(cmd.Image.bounds.Dx()),
 			float64(cmd.Image.bounds.Dy()),
 		)
@@ -70,14 +70,14 @@ func (dl *DrawList) Add(commands ...*DrawCommand) {
 		opts.G = cmd.ColorScale.G()
 		opts.B = cmd.ColorScale.B()
 		opts.A = cmd.ColorScale.A()
-		opts.SrcX = float32(cmd.Image.bounds.Min.X)
-		opts.SrcY = float32(cmd.Image.bounds.Min.Y)
-		opts.SrcWidth = float32(cmd.Image.bounds.Dx())
-		opts.SrcHeight = float32(cmd.Image.bounds.Dy())
-		opts.DstX = float32(x)
-		opts.DstY = float32(y)
-		opts.DstWidth = float32(w - x)
-		opts.DstHeight = float32(h - y)
+		opts.SrcX0 = float32(cmd.Image.bounds.Min.X)
+		opts.SrcY0 = float32(cmd.Image.bounds.Min.Y)
+		opts.SrcX1 = float32(cmd.Image.bounds.Max.X)
+		opts.SrcY1 = float32(cmd.Image.bounds.Max.Y)
+		opts.DstX0 = float32(x0)
+		opts.DstY0 = float32(y0)
+		opts.DstX1 = float32(x1)
+		opts.DstY1 = float32(y1)
 		dl.vx, dl.ix = graphics.AppendRectVerticesIndices(
 			dl.vx, dl.ix, batch.end, opts,
 		)
