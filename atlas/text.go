@@ -1,13 +1,6 @@
 package atlas
 
-import (
-	"image"
-	"strings"
-
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/text/v2"
-)
-
+/*
 type textAtlas struct {
 	*Atlas
 	glyphs map[rune]*Image
@@ -51,14 +44,14 @@ func DrawText(dst *ebiten.Image, str string, face text.Face, opts *text.DrawOpti
 		if glyph.Image == nil {
 			continue
 		}
-		/*
-			// text/v2.Draw version
-			geom := opts.GeoM
-			geom.Translate(glyph.X, glyph.Y)
-			dst.DrawImage(glyph.Image, &ebiten.DrawImageOptions{
-				GeoM: geom,
-			})
-			continue*/
+
+		// text/v2.Draw version
+		//geom := opts.GeoM
+		//geom.Translate(glyph.X, glyph.Y)
+		//dst.DrawImage(glyph.Image, &ebiten.DrawImageOptions{
+		//	GeoM: geom,
+		//})
+		//continue
 
 		cached, ok := atlas.glyphs[r]
 		if !ok {
@@ -87,4 +80,4 @@ func DrawText(dst *ebiten.Image, str string, face text.Face, opts *text.DrawOpti
 	}
 	// Flush to destination
 	textDrawList.Flush(dst, &DrawOptions{})
-}
+}*/
