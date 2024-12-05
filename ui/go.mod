@@ -1,6 +1,6 @@
 module github.com/Zyko0/Ebiary/ui
 
-go 1.21.1
+go 1.22.0
 
 require (
 	github.com/Zyko0/Ebiary/asset v0.0.0-20240304185439-be56fe8a2a6a

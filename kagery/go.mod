@@ -1,6 +1,6 @@
 module github.com/Zyko0/Ebiary/kagery
 
-go 1.21.1
+go 1.22.0
 
 require (
 	github.com/Zyko0/Ebiary/ui v0.0.0-20240519192033-29e939ca83fa

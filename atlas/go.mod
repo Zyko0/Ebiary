@@ -1,6 +1,6 @@
 module github.com/Zyko0/Ebiary/atlas
 
-go 1.21.1
+go 1.22.0
 
 require (
 	github.com/hajimehoshi/ebiten/v2 v2.7.6

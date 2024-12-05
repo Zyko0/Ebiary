@@ -37,6 +37,11 @@ type DrawCommand struct {
 // So, it is better to have the maximum of consecutive DrawCommand images
 // sharing the same atlas.
 func (dl *DrawList) Add(commands ...*DrawCommand) {
+	const (
+		// 16384 commands by batch (65536 indices max)
+		maxBatchEnd = 65536 / 4
+	)
+
 	if len(commands) == 0 {
 		return
 	}
@@ -54,7 +59,7 @@ func (dl *DrawList) Add(commands ...*DrawCommand) {
 	// Add vertices and indices
 	opts := &graphics.RectOpts{}
 	for _, cmd := range commands {
-		if cmd.Image.atlas != batch.atlas {
+		if cmd.Image.atlas != batch.atlas || batch.end >= maxBatchEnd {
 			dl.ranges = append(dl.ranges, drawRange{
 				atlas: cmd.Image.atlas,
 			})
@@ -87,6 +92,8 @@ func (dl *DrawList) Add(commands ...*DrawCommand) {
 		dl.vx, dl.ix = graphics.AppendRectVerticesIndices(
 			dl.vx, dl.ix, batch.end, opts,
 		)
+
+		//if len(dl.ix) >=
 
 		batch.end++
 	}

@@ -61,16 +61,14 @@ func New() *App {
 		if img == nil {
 			break
 		}
-		if img != nil {
-			img.Image().Fill(color.RGBA{
-				R: uint8(rand.Intn(255)),
-				G: uint8(rand.Intn(255)),
-				B: uint8(rand.Intn(255)),
-				A: 255,
-			})
-			app.atlasImages = append(app.atlasImages, img)
-			app.subImages = append(app.subImages, img.Image())
-		}
+		img.Image().Fill(color.RGBA{
+			R: uint8(rand.Intn(255)),
+			G: uint8(rand.Intn(255)),
+			B: uint8(rand.Intn(255)),
+			A: 255,
+		})
+		app.atlasImages = append(app.atlasImages, img)
+		app.subImages = append(app.subImages, img.Image())
 	}
 
 	return app
