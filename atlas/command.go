@@ -146,19 +146,17 @@ type DrawShaderOptions struct {
 }
 
 func (dl *DrawList) FlushWithShader(dst *ebiten.Image, shader *ebiten.Shader, opts *DrawShaderOptions) {
-	var topts *ebiten.DrawTrianglesShaderOptions
+	topts := &ebiten.DrawTrianglesShaderOptions{}
 	if opts != nil {
-		topts = &ebiten.DrawTrianglesShaderOptions{
-			Blend:    opts.Blend,
-			Uniforms: opts.Uniforms,
-			Images: [4]*ebiten.Image{
-				nil,
-				opts.ExtraImages[0],
-				opts.ExtraImages[1],
-				opts.ExtraImages[2],
-			},
-			AntiAlias: opts.AntiAlias,
+		topts.Blend = opts.Blend
+		topts.Uniforms = opts.Uniforms
+		topts.Images = [4]*ebiten.Image{
+			nil,
+			opts.ExtraImages[0],
+			opts.ExtraImages[1],
+			opts.ExtraImages[2],
 		}
+		topts.AntiAlias = opts.AntiAlias
 	}
 	index := 0
 	for _, r := range dl.ranges {
