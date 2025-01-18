@@ -137,3 +137,42 @@ func (dl *DrawList) Flush(dst *ebiten.Image, opts *DrawOptions) {
 	dl.vx = dl.vx[:0]
 	dl.ix = dl.ix[:0]
 }
+
+type DrawShaderOptions struct {
+	Blend       ebiten.Blend
+	Uniforms    map[string]any
+	ExtraImages [3]*ebiten.Image
+	AntiAlias   bool
+}
+
+func (dl *DrawList) FlushWithShader(dst *ebiten.Image, shader *ebiten.Shader, opts *DrawShaderOptions) {
+	var topts *ebiten.DrawTrianglesShaderOptions
+	if opts != nil {
+		topts = &ebiten.DrawTrianglesShaderOptions{
+			Blend:    opts.Blend,
+			Uniforms: opts.Uniforms,
+			Images: [4]*ebiten.Image{
+				nil,
+				opts.ExtraImages[0],
+				opts.ExtraImages[1],
+				opts.ExtraImages[2],
+			},
+			AntiAlias: opts.AntiAlias,
+		}
+	}
+	index := 0
+	for _, r := range dl.ranges {
+		topts.Images[0] = r.atlas.native
+		dst.DrawTrianglesShader(
+			dl.vx[index*4:(index+r.end)*4],
+			dl.ix[index*6:(index+r.end)*6],
+			shader,
+			topts,
+		)
+		index += r.end
+	}
+	// Clear buffers
+	dl.ranges = dl.ranges[:0]
+	dl.vx = dl.vx[:0]
+	dl.ix = dl.ix[:0]
+}
